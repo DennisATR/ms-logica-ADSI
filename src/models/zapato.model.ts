@@ -1,9 +1,22 @@
-import {Entity, model, property, hasMany, belongsTo} from '@loopback/repository';
+import {belongsTo, Entity, hasMany, model, property} from '@loopback/repository';
 import {Factura} from './factura.model';
-import {Venta} from './venta.model';
 import {Proveedor} from './proveedor.model';
+import {Venta} from './venta.model';
 
-@model()
+@model(
+  {
+    settings: {
+      foreignKeys: {
+        fk_zapato_proveedorId: {
+          name: 'fk_zapato_proveedorId',
+          entity: 'Proveedor',
+          entityKey: 'id',
+          foreignKey: 'idProveedor',
+        },
+      },
+    },
+  }
+)
 export class Zapato extends Entity {
   @property({
     type: 'number',
