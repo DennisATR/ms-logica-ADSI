@@ -55,6 +55,7 @@
     "@loopback/rest": "^14.0.6",
     "@loopback/rest-explorer": "^7.0.6",
     "@loopback/service-proxy": "^7.0.6",
+    "loopback-connector-mysql": "^7.0.14",
     "ms-logica-negocio": "file:",
     "tslib": "^2.0.0"
   },
