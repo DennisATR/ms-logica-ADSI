@@ -6,10 +6,10 @@ import {Factura} from './factura.model';
     settings: {
       foreignKeys: {
         fk_credito_idFactura: {
-          name: 'fk_credito_idFactura',
+          name: 'fk_credito_facturaId',
           entity: 'Factura',
           entityKey: 'id',
-          foreignKey: 'idFactura',
+          foreignKey: 'facturaId',
         },
       },
     },
@@ -22,12 +22,6 @@ export class Credito extends Entity {
     generated: true,
   })
   id?: number;
-
-  @property({
-    type: 'number',
-    required: true,
-  })
-  idFactura: number;
 
   @property({
     type: 'number',

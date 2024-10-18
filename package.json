@@ -57,6 +57,7 @@
     "@loopback/service-proxy": "^7.0.6",
     "loopback-connector-mysql": "^7.0.14",
     "ms-logica-negocio": "file:",
+    "pdfkit": "^0.15.0",
     "tslib": "^2.0.0"
   },
   "devDependencies": {
@@ -64,6 +65,7 @@
     "@loopback/eslint-config": "^15.0.4",
     "@loopback/testlab": "^7.0.6",
     "@types/node": "^16.18.101",
+    "@types/pdfkit": "^0.13.5",
     "eslint": "^8.57.0",
     "source-map-support": "^0.5.21",
     "typescript": "~5.2.2"

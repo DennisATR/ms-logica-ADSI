@@ -9,11 +9,12 @@ import {Empleado} from './empleado.model';
           name: 'fk_pago_idEmpleado',
           entity: 'Empleado',
           entityKey: 'id',
-          foreignKey: 'idEmpleado',
+          foreignKey: 'empleadoId',
         },
       },
     },
   },
+
 )
 export class Pago extends Entity {
   @property({
@@ -22,12 +23,6 @@ export class Pago extends Entity {
     generated: true,
   })
   id?: number;
-
-  @property({
-    type: 'number',
-    required: true,
-  })
-  idEmpleado: number;
 
   @property({
     type: 'date',

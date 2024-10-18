@@ -3,17 +3,19 @@ import {Venta} from './venta.model';
 
 @model(
   {
+
     settings: {
       foreignKeys: {
         fk_ventaPendiente_id: {
           name: 'fk_ventaPendiente_id',
           entity: 'Venta',
           entityKey: 'id',
-          foreignKey: 'idVenta',
+          foreignKey: 'ventaId',
         },
       },
     },
   },
+
 )
 export class Pendiente extends Entity {
   @property({
@@ -22,12 +24,6 @@ export class Pendiente extends Entity {
     generated: true,
   })
   id?: number;
-
-  @property({
-    type: 'number',
-    required: true,
-  })
-  idVenta: number;
 
   @property({
     type: 'date',

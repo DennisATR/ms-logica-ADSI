@@ -1,12 +1,13 @@
 import {inject, Getter} from '@loopback/core';
 import {DefaultCrudRepository, repository, BelongsToAccessor, HasManyThroughRepositoryFactory, HasManyRepositoryFactory} from '@loopback/repository';
 import {MysqlDataSource} from '../datasources';
-import {Factura, FacturaRelations, MetodoPago, Zapato, Venta, Credito, Cliente} from '../models';
+import {Factura, FacturaRelations, MetodoPago, Zapato, Venta, Credito, Cliente, Empleado} from '../models';
 import {MetodoPagoRepository} from './metodo-pago.repository';
 import {VentaRepository} from './venta.repository';
 import {ZapatoRepository} from './zapato.repository';
 import {CreditoRepository} from './credito.repository';
 import {ClienteRepository} from './cliente.repository';
+import {EmpleadoRepository} from './empleado.repository';
 
 export class FacturaRepository extends DefaultCrudRepository<
   Factura,
@@ -25,10 +26,14 @@ export class FacturaRepository extends DefaultCrudRepository<
 
   public readonly cliente: BelongsToAccessor<Cliente, typeof Factura.prototype.id>;
 
+  public readonly empleado: BelongsToAccessor<Empleado, typeof Factura.prototype.id>;
+
   constructor(
-    @inject('datasources.mysql') dataSource: MysqlDataSource, @repository.getter('MetodoPagoRepository') protected metodoPagoRepositoryGetter: Getter<MetodoPagoRepository>, @repository.getter('VentaRepository') protected ventaRepositoryGetter: Getter<VentaRepository>, @repository.getter('ZapatoRepository') protected zapatoRepositoryGetter: Getter<ZapatoRepository>, @repository.getter('CreditoRepository') protected creditoRepositoryGetter: Getter<CreditoRepository>, @repository.getter('ClienteRepository') protected clienteRepositoryGetter: Getter<ClienteRepository>,
+    @inject('datasources.mysql') dataSource: MysqlDataSource, @repository.getter('MetodoPagoRepository') protected metodoPagoRepositoryGetter: Getter<MetodoPagoRepository>, @repository.getter('VentaRepository') protected ventaRepositoryGetter: Getter<VentaRepository>, @repository.getter('ZapatoRepository') protected zapatoRepositoryGetter: Getter<ZapatoRepository>, @repository.getter('CreditoRepository') protected creditoRepositoryGetter: Getter<CreditoRepository>, @repository.getter('ClienteRepository') protected clienteRepositoryGetter: Getter<ClienteRepository>, @repository.getter('EmpleadoRepository') protected empleadoRepositoryGetter: Getter<EmpleadoRepository>,
   ) {
     super(Factura, dataSource);
+    this.empleado = this.createBelongsToAccessorFor('empleado', empleadoRepositoryGetter,);
+    this.registerInclusionResolver('empleado', this.empleado.inclusionResolver);
     this.cliente = this.createBelongsToAccessorFor('cliente', clienteRepositoryGetter,);
     this.registerInclusionResolver('cliente', this.cliente.inclusionResolver);
     this.creditos = this.createHasManyRepositoryFactoryFor('creditos', creditoRepositoryGetter,);

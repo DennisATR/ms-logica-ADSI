@@ -6,10 +6,10 @@ import {Proveedor} from './proveedor.model';
     settings: {
       foreignKeys: {
         fk_proveedor_id: {
-          name: 'fk_proveedor_id',
+          name: 'fk_proveedor_id_cuenta',
           entity: 'Proveedor',
           entityKey: 'id',
-          foreignKey: 'idProveedor',
+          foreignKey: 'proveedorId',
         },
       },
     },
@@ -22,12 +22,6 @@ export class Cuenta extends Entity {
     generated: true,
   })
   id?: number;
-
-  @property({
-    type: 'number',
-    required: true,
-  })
-  idProveedor: number;
 
   @property({
     type: 'number',

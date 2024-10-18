@@ -1,6 +1,7 @@
 import {belongsTo, Entity, hasMany, model, property} from '@loopback/repository';
 import {Cliente} from './cliente.model';
 import {Credito} from './credito.model';
+import {Empleado} from './empleado.model';
 import {MetodoPago} from './metodo-pago.model';
 import {Venta} from './venta.model';
 import {Zapato} from './zapato.model';
@@ -13,23 +14,24 @@ import {Zapato} from './zapato.model';
           name: 'fk_factura_idCliente',
           entity: 'Cliente',
           entityKey: 'id',
-          foreignKey: 'idCliente',
+          foreignKey: 'clienteId',
         },
         fk_factura_idMetodoPago: {
           name: 'fk_factura_idMetodoPago',
           entity: 'MetodoPago',
           entityKey: 'id',
-          foreignKey: 'idMetodoPago',
+          foreignKey: 'metodoPagoId',
         },
         fk_factura_idEmpleado: {
           name: 'fk_factura_idEmpleado',
           entity: 'Empleado',
           entityKey: 'id',
-          foreignKey: 'idEmpleado',
+          foreignKey: 'empleadoId',
         },
       },
     },
   },
+
 )
 export class Factura extends Entity {
   @property({
@@ -38,24 +40,6 @@ export class Factura extends Entity {
     generated: true,
   })
   id?: number;
-
-  @property({
-    type: 'number',
-    required: true,
-  })
-  idCliente: number;
-
-  @property({
-    type: 'number',
-    required: true,
-  })
-  idMetodoPago: number;
-
-  @property({
-    type: 'number',
-    required: true,
-  })
-  idEmpleado: number;
 
   @property({
     type: 'number',
@@ -91,6 +75,9 @@ export class Factura extends Entity {
 
   @belongsTo(() => Cliente)
   clienteId: number;
+
+  @belongsTo(() => Empleado)
+  empleadoId: number;
 
   constructor(data?: Partial<Factura>) {
     super(data);

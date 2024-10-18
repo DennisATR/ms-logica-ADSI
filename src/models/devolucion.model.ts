@@ -2,6 +2,7 @@ import {belongsTo, Entity, model, property} from '@loopback/repository';
 import {Venta} from './venta.model';
 
 @model(
+
   {
     settings: {
       foreignKeys: {
@@ -9,11 +10,12 @@ import {Venta} from './venta.model';
           name: 'fk_venta_id',
           entity: 'Venta',
           entityKey: 'id',
-          foreignKey: 'idVenta',
+          foreignKey: 'ventaId',
         },
       },
     },
   },
+
 )
 export class Devolucion extends Entity {
   @property({
@@ -23,11 +25,6 @@ export class Devolucion extends Entity {
   })
   id?: number;
 
-  @property({
-    type: 'number',
-    required: true,
-  })
-  idVenta: number;
 
   @property({
     type: 'string',

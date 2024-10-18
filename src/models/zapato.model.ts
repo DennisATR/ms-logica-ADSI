@@ -11,17 +11,18 @@ import {Venta} from './venta.model';
           name: 'fk_zapato_proveedorId',
           entity: 'Proveedor',
           entityKey: 'id',
-          foreignKey: 'idProveedor',
+          foreignKey: 'proveedorId',
         },
       },
     },
   }
+
 )
 export class Zapato extends Entity {
   @property({
     type: 'number',
     id: true,
-    generated: true,
+    generated: true
   })
   id?: number;
 
@@ -48,12 +49,6 @@ export class Zapato extends Entity {
     required: true,
   })
   Color: string;
-
-  @property({
-    type: 'number',
-    required: true,
-  })
-  idProveedor: number;
 
   @property({
     type: 'number',

@@ -34,3 +34,5 @@ export * from './proveedor-zapato.controller';
 export * from './zapato-proveedor.controller';
 export * from './proveedor-cuenta.controller';
 export * from './cuenta-proveedor.controller';
+export * from './factura-empleado.controller';
+export * from './empleado-factura.controller';

@@ -10,17 +10,18 @@ import {Pendiente} from './pendiente.model';
           name: 'fk_venta_facturaId',
           entity: 'Factura',
           entityKey: 'id',
-          foreignKey: 'idFactura',
+          foreignKey: 'facturaId',
         },
         fk_venta_zapatoId: {
           name: 'fk_venta_zapatoId',
           entity: 'Zapato',
           entityKey: 'id',
-          foreignKey: 'idZapato',
+          foreignKey: 'zapatoId',
         },
       },
     },
   },
+
 )
 export class Venta extends Entity {
   @property({
@@ -29,18 +30,6 @@ export class Venta extends Entity {
     generated: true,
   })
   id?: number;
-
-  @property({
-    type: 'number',
-    required: true,
-  })
-  idFactura: number;
-
-  @property({
-    type: 'number',
-    required: true,
-  })
-  idZapato: number;
 
   @property({
     type: 'number',
