@@ -55,9 +55,9 @@ export class Venta extends Entity {
   facturaId?: number;
 
   @property({
-    type: 'number',
+    type: 'string',
   })
-  zapatoId?: number;
+  zapatoId?: string;
 
   @hasMany(() => Devolucion)
   devolucions: Devolucion[];

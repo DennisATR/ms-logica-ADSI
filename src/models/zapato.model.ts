@@ -20,11 +20,10 @@ import {Venta} from './venta.model';
 )
 export class Zapato extends Entity {
   @property({
-    type: 'number',
-    id: true,
-    generated: true
+    type: 'string',
+    id: true
   })
-  id?: number;
+  id?: string;
 
   @property({
     type: 'string',

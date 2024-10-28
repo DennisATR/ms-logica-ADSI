@@ -7,13 +7,13 @@ import {
   Where,
 } from '@loopback/repository';
 import {
-  post,
-  param,
+  del,
   get,
   getModelSchemaRef,
+  param,
   patch,
+  post,
   put,
-  del,
   requestBody,
   response,
 } from '@loopback/rest';
@@ -105,7 +105,7 @@ export class ZapatoController {
     },
   })
   async findById(
-    @param.path.number('id') id: number,
+    @param.path.string('id') id: string,
     @param.filter(Zapato, {exclude: 'where'}) filter?: FilterExcludingWhere<Zapato>
   ): Promise<Zapato> {
     return this.zapatoRepository.findById(id, filter);
@@ -116,7 +116,7 @@ export class ZapatoController {
     description: 'Zapato PATCH success',
   })
   async updateById(
-    @param.path.number('id') id: number,
+    @param.path.string('id') id: string,
     @requestBody({
       content: {
         'application/json': {
@@ -134,7 +134,7 @@ export class ZapatoController {
     description: 'Zapato PUT success',
   })
   async replaceById(
-    @param.path.number('id') id: number,
+    @param.path.string('id') id: string,
     @requestBody() zapato: Zapato,
   ): Promise<void> {
     await this.zapatoRepository.replaceById(id, zapato);
@@ -144,7 +144,7 @@ export class ZapatoController {
   @response(204, {
     description: 'Zapato DELETE success',
   })
-  async deleteById(@param.path.number('id') id: number): Promise<void> {
+  async deleteById(@param.path.string('id') id: string): Promise<void> {
     await this.zapatoRepository.deleteById(id);
   }
 }

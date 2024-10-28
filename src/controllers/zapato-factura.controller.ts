@@ -5,7 +5,7 @@ import {
   repository,
   Where,
 } from '@loopback/repository';
-  import {
+import {
   del,
   get,
   getModelSchemaRef,
@@ -16,9 +16,8 @@ import {
   requestBody,
 } from '@loopback/rest';
 import {
-Zapato,
-Venta,
-Factura,
+  Factura,
+  Zapato
 } from '../models';
 import {ZapatoRepository} from '../repositories';
 
@@ -40,7 +39,7 @@ export class ZapatoFacturaController {
     },
   })
   async find(
-    @param.path.number('id') id: number,
+    @param.path.string('id') id: string,
     @param.query.object('filter') filter?: Filter<Factura>,
   ): Promise<Factura[]> {
     return this.zapatoRepository.facturas(id).find(filter);
@@ -79,7 +78,7 @@ export class ZapatoFacturaController {
     },
   })
   async patch(
-    @param.path.number('id') id: number,
+    @param.path.string('id') id: string,
     @requestBody({
       content: {
         'application/json': {
@@ -102,7 +101,7 @@ export class ZapatoFacturaController {
     },
   })
   async delete(
-    @param.path.number('id') id: number,
+    @param.path.string('id') id: string,
     @param.query.object('where', getWhereSchemaFor(Factura)) where?: Where<Factura>,
   ): Promise<Count> {
     return this.zapatoRepository.facturas(id).delete(where);
