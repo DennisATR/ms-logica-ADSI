@@ -15,3 +15,7 @@ export * from './entrega.model';
 export * from './gastos.model';
 export * from './mermas.model';
 export * from './reportes.model';
+export * from './login.model';
+export * from './rol.model';
+export * from './menu-del-rol.model';
+export * from './menu.model';

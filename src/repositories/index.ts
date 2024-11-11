@@ -15,3 +15,7 @@ export * from './proveedor.repository';
 export * from './reportes.repository';
 export * from './venta.repository';
 export * from './zapato.repository';
+export * from './login.repository';
+export * from './menu-del-rol.repository';
+export * from './menu.repository';
+export * from './rol.repository';
