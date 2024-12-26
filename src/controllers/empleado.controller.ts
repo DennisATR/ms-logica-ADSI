@@ -1,3 +1,4 @@
+import {service} from '@loopback/core';
 import {
   Count,
   CountSchema,
@@ -7,23 +8,29 @@ import {
   Where,
 } from '@loopback/repository';
 import {
-  post,
-  param,
+  del,
   get,
   getModelSchemaRef,
+  HttpErrors,
+  param,
   patch,
+  post,
   put,
-  del,
   requestBody,
   response,
 } from '@loopback/rest';
-import {Empleado} from '../models';
-import {EmpleadoRepository} from '../repositories';
+import {Credenciales, Empleado, Login} from '../models';
+import {EmpleadoRepository, LoginRepository} from '../repositories';
+import {SeguridadUsuarioService} from '../services';
 
 export class EmpleadoController {
   constructor(
     @repository(EmpleadoRepository)
     public empleadoRepository : EmpleadoRepository,
+    @service(SeguridadUsuarioService)
+    public seguridadUsuarioService: SeguridadUsuarioService,
+    @repository(LoginRepository)
+    public loginRepository: LoginRepository,
   ) {}
 
   @post('/empleado')
@@ -44,6 +51,29 @@ export class EmpleadoController {
     })
     empleado: Omit<Empleado, 'id'>,
   ): Promise<Empleado> {
+     // Verificar si el usuario ya existe
+     let usuarioExistente = await this.empleadoRepository.findOne({
+      where: {Correo: empleado.Correo},
+    });
+
+    if (usuarioExistente) {
+      throw new HttpErrors[400]('El usuario ya existe.');
+    }
+
+    // Verifica si el correo es unico o ya no hay un usuario con ese correo
+    let usuarioExistenteCorreo = await this.empleadoRepository.findOne({
+      where: {Correo: empleado.Correo},
+    });
+    if (usuarioExistenteCorreo) {
+      throw new HttpErrors[400]('El correo ya esta en uso.');
+    }
+    // Cifrar la clave
+    let claveCifrada;
+    if (empleado.Clave) {
+      claveCifrada = this.seguridadUsuarioService.cifrarTexto(empleado.Clave);
+    }
+    // Asignar la clave al usuario
+    empleado.Clave = claveCifrada || '';
     return this.empleadoRepository.create(empleado);
   }
 
@@ -146,5 +176,31 @@ export class EmpleadoController {
   })
   async deleteById(@param.path.number('id') id: number): Promise<void> {
     await this.empleadoRepository.deleteById(id);
+  }
+
+  @post('/identificar-usuario')
+  @response(200, {
+    description: 'Identificar un usuario por correo y clave',
+    content: {'application/json': {schema: getModelSchemaRef(Empleado)}},
+  })
+  async identificarUsuario(
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: getModelSchemaRef(Credenciales),
+        },
+      },
+    })
+    credentials: Credenciales,
+  ): Promise<object> {
+    let user = await this.seguridadUsuarioService.identificarUsuario(credentials);
+    if (user) {
+      let login: Login = new Login();
+      login.empleadoId = user.id!; // Este dato _id si o si va a llegar
+      login.Fecha = new Date().toString();
+      this.loginRepository.create(login);
+      return user;
+    }
+    return new HttpErrors[401]('Credenciales incorrectas. ');
   }
 }

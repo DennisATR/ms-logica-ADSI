@@ -49,14 +49,17 @@
     "!*/__tests__"
   ],
   "dependencies": {
+    "@loopback/authentication": "^11.0.9",
     "@loopback/boot": "^7.0.6",
     "@loopback/core": "^6.1.3",
     "@loopback/repository": "^7.0.6",
     "@loopback/rest": "^14.0.6",
     "@loopback/rest-explorer": "^7.0.6",
     "@loopback/service-proxy": "^7.0.6",
+    "axios": "^1.7.9",
     "loopback-connector-mysql": "^7.0.14",
     "ms-logica-negocio": "file:",
+    "parse-bearer-token": "^1.0.1",
     "pdfkit": "^0.15.0",
     "tslib": "^2.0.0"
   },

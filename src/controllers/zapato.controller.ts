@@ -1,3 +1,4 @@
+import {service} from '@loopback/core';
 import {
   Count,
   CountSchema,
@@ -10,6 +11,7 @@ import {
   del,
   get,
   getModelSchemaRef,
+  HttpErrors,
   param,
   patch,
   post,
@@ -17,13 +19,16 @@ import {
   requestBody,
   response,
 } from '@loopback/rest';
-import {Zapato} from '../models';
+import {Zapato, ZapatoSerie} from '../models';
 import {ZapatoRepository} from '../repositories';
+import {StickerService} from '../services';
 
 export class ZapatoController {
   constructor(
     @repository(ZapatoRepository)
     public zapatoRepository : ZapatoRepository,
+    @service(StickerService)
+    public stickerService: StickerService
   ) {}
 
   @post('/zapato')
@@ -36,15 +41,48 @@ export class ZapatoController {
       content: {
         'application/json': {
           schema: getModelSchemaRef(Zapato, {
-            title: 'NewZapato',
-            exclude: ['id'],
+            title: 'NewZapato'
           }),
         },
       },
     })
-    zapato: Omit<Zapato, 'id'>,
+    zapato: Zapato,
   ): Promise<Zapato> {
-    return this.zapatoRepository.create(zapato);
+    // Extraer la descripción y categoría para generar el prefijo
+    const { Descripcion, Categoria, Talla, id, ...commonData } = zapato;
+
+    let zapatoConId;
+
+    // Si el ID no es proporcionado, generarlo
+    if (id) {
+      // Si el ID es proporcionado, lo usamos tal cual
+      zapatoConId = {
+        ...zapato,
+        id: id,
+      };
+    } else {
+      // Generar el ID si no fue proporcionado
+      const prefijoDescripcion = Descripcion.substring(0, 3).toUpperCase();
+      const prefijoCategoria = Categoria.substring(0, 3).toUpperCase();
+
+      // Obtener el consecutivo
+      const consecutivo = await this.obtenerConsecutivo(prefijoDescripcion, prefijoCategoria);
+
+      // Generar el ID para el zapato individual
+      const generatedId = `${prefijoDescripcion}${prefijoCategoria}${consecutivo}${Talla}`;
+
+      zapatoConId = {
+        ...zapato,
+        id: generatedId,
+      };
+    }
+    const zapatoInstance = new Zapato(zapatoConId);
+    const filepath = this.stickerService.generarSticker(zapatoInstance);
+    console.log(filepath);
+    this.stickerService.imprimirSticker(filepath);
+
+    // Crear el zapato con el ID generado o proporcionado
+    return this.zapatoRepository.create(zapatoConId);
   }
 
   @get('/zapato/count')
@@ -146,5 +184,82 @@ export class ZapatoController {
   })
   async deleteById(@param.path.string('id') id: string): Promise<void> {
     await this.zapatoRepository.deleteById(id);
+  }
+
+  @post('/zapato/crearSerie')
+  @response(200, {
+    description: 'Zapato model instances (serie creada)',
+    content: {'application/json': {schema: {type: 'array', items: getModelSchemaRef(Zapato)}}},
+  })
+  async crearSerie(
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: getModelSchemaRef(ZapatoSerie, {title: 'CreateZapatoSerie'}),
+        },
+      },
+    })
+    data: ZapatoSerie,
+  ): Promise<Zapato[]> {
+    const {TallaInicial, TallaFinal, Cantidad, Descripcion, Categoria, ...commonData} = data;
+
+    if (TallaInicial > TallaFinal) {
+      throw new HttpErrors.BadRequest('La talla inicial no puede ser mayor que la talla final.');
+    }
+
+    const zapatosCreados: Zapato[] = [];
+    const totalTallas = TallaFinal - TallaInicial + 1;
+
+    // Determinar cantidades para cada zapato
+    let cantidades: number[] = [];
+    if (Array.isArray(Cantidad)) {
+      // Si `Cantidad` es un array, asignar según índice o completar con `1`
+      cantidades = Cantidad.concat(Array(totalTallas - Cantidad.length).fill(1));
+    } else if (typeof Cantidad === 'number') {
+      // Si `Cantidad` es un número, asignar uniformemente
+      cantidades = Array(totalTallas).fill(Cantidad);
+    } else {
+      throw new HttpErrors.BadRequest('El campo Cantidad debe ser un número o un array de números.');
+    }
+
+    // Generar consecutivo de la serie solo una vez
+    const prefijoDescripcion = Descripcion.substring(0, 3).toUpperCase();
+    const prefijoCategoria = Categoria.substring(0, 3).toUpperCase();
+    const consecutivo = await this.obtenerConsecutivo(prefijoDescripcion, prefijoCategoria);
+
+    for (let i = 0; i < totalTallas; i++) {
+      const talla = TallaInicial + i;
+      const id = `${prefijoDescripcion}${prefijoCategoria}${consecutivo}${talla}`;
+
+      const zapatoData = {
+        id: id,
+        Descripcion: Descripcion,
+        Categoria: Categoria,
+        Talla: talla,
+        Cantidad: cantidades[i],
+        ...commonData,
+      };
+
+      const nuevoZapato = await this.zapatoRepository.create(zapatoData);
+      zapatosCreados.push(nuevoZapato);
+    }
+
+    return zapatosCreados;
+  }
+
+  // Método para obtener el consecutivo actual basado en descripción y categoría
+  async obtenerConsecutivo(prefijoDescripcion: string, prefijoCategoria: string): Promise<string> {
+    const filtro = new RegExp(`^${prefijoDescripcion}${prefijoCategoria}\\d{3}`);
+    const existentes = await this.zapatoRepository.find({
+      where: {id: {regexp: filtro}},
+    });
+
+    const numeros = existentes
+      .map(zapato => zapato.id ? parseInt(zapato.id.substring(6, 9)) : NaN)
+      .filter(n => !isNaN(n));
+    const maxNumero = numeros.length > 0 ? Math.max(...numeros) : 0;
+
+    // Incrementar y retornar en formato de 3 dígitos
+    return String(maxNumero + 1).padStart(3, '0');
   }
 }

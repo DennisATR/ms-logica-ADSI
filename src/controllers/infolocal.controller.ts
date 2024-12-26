@@ -7,13 +7,13 @@ import {
   Where,
 } from '@loopback/repository';
 import {
-  post,
-  param,
+  del,
   get,
   getModelSchemaRef,
+  param,
   patch,
+  post,
   put,
-  del,
   requestBody,
   response,
 } from '@loopback/rest';
@@ -44,6 +44,8 @@ export class InfolocalController {
     })
     infolocal: Omit<Infolocal, 'id'>,
   ): Promise<Infolocal> {
+      // Eliminar el registro anterior
+    await this.infolocalRepository.deleteAll(); // Esto eliminará todos los registros
     return this.infolocalRepository.create(infolocal);
   }
 
