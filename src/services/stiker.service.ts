@@ -1,7 +1,7 @@
 import {BindingScope, injectable} from '@loopback/core';
 import {exec} from 'child_process';
-import fs from 'fs';
-import PDFDocument from 'pdfkit';
+import {Document, Packer, Paragraph, TextRun} from "docx";
+import * as fs from "fs";
 import {Zapato} from '../models';
 
 @injectable({scope: BindingScope.TRANSIENT})
@@ -14,33 +14,78 @@ export class StickerService {
    * @returns La ruta donde se ha guardado el archivo PDF.
    */
   generarSticker(zapato: Zapato): string {
-    // Define la ruta donde se guardará el sticker
-    const filePath = `./stickers/sticker_${zapato.getId()}.pdf`;
+    const filePath = `./stickers/sticker_${zapato.getId()}.docx`;
 
     // Asegúrate de que la carpeta exista
     if (!fs.existsSync('./stickers')) {
       fs.mkdirSync('./stickers');
     }
 
-    // Crea un nuevo documento PDF
-    const doc = new PDFDocument();
-    doc.pipe(fs.createWriteStream(filePath));
+    // Crear un documento de Word con orientación horizontal (rotada)
+    const doc = new Document({
+      sections: [
+        {
+          properties: {
+            page: {
+              size: { width: 652, height: 1360 }, // Tamaño en twips (4.8 cm x 2.3 cm), pero rotado
+              margin: { top: 0, bottom: 0, left: 0, right: 0 }, // Sin márgenes
+            },
+          },
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: `Nombre del Local: hyt`,
+                  size: 16, // Tamaño pequeño (8 pt)
+                }),
+              ],
+            }),
+            new Paragraph({
+              children: [
+                new TextRun(`Producto: Zapato`),
+              ],
+            }),
+            new Paragraph({
+              children: [
+                new TextRun(`Modelo: ${zapato.Descripcion}`),
+              ],
+            }),
+            new Paragraph({
+              children: [
+                new TextRun(`Código de Barras: ${zapato.id}`),
+              ],
+            }),
+            new Paragraph({
+              children: [
+                new TextRun(`Precio: $${zapato.PrecioVentaMax}`),
+              ],
+            }),
+            new Paragraph({
+              children: [
+                new TextRun(`Talla: ${zapato.Talla}`),
+              ],
+            }),
+            new Paragraph({
+              children: [
+                new TextRun(`Color: ${zapato.Color}`),
+              ],
+            }),
+          ],
+        },
+      ],
+    });
 
-    // Añade información al sticker
-    doc.fontSize(12).text(`Nombre del Local: hyt`);
-    doc.text(`Producto: Zapato`);
-    doc.text(`Modelo: ${zapato.Descripcion}`);
-    doc.text(`Código de Barras: ${zapato.id}`);
-    doc.text(`Precio: $${zapato.PrecioVentaMax}`);
-    doc.text(`Talla: ${zapato.Talla}`);
-    doc.text(`Color: ${zapato.Color}`);
+    // Guardar el documento en el sistema de archivos
+    Packer.toBuffer(doc).then((buffer) => {
+      fs.writeFileSync(filePath, buffer);
+    });
 
-    // Finaliza la creación del PDF
-    doc.end();
-
-    // Retorna la ruta donde se guardó el PDF
+    // Retorna la ruta donde se guardó el documento
     return filePath;
   }
+
+
+
 
   /**
    * Elimina un sticker en formato PDF.

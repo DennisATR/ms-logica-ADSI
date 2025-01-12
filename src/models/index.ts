@@ -1,3 +1,4 @@
+export * from './cambio-clave.model';
 export * from './cliente.model';
 export * from './credenciales.model';
 export * from './credito.model';
@@ -16,6 +17,7 @@ export * from './metodo-pago.model';
 export * from './pago.model';
 export * from './pendiente.model';
 export * from './proveedor.model';
+export * from './recuperar-clave.model';
 export * from './reportes.model';
 export * from './rol.model';
 export * from './venta.model';

@@ -79,7 +79,6 @@ export class ZapatoController {
     const zapatoInstance = new Zapato(zapatoConId);
     const filepath = this.stickerService.generarSticker(zapatoInstance);
     console.log(filepath);
-    this.stickerService.imprimirSticker(filepath);
 
     // Crear el zapato con el ID generado o proporcionado
     return this.zapatoRepository.create(zapatoConId);

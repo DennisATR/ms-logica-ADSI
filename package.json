@@ -57,6 +57,7 @@
     "@loopback/rest-explorer": "^7.0.6",
     "@loopback/service-proxy": "^7.0.6",
     "axios": "^1.7.9",
+    "docx": "^9.1.0",
     "loopback-connector-mysql": "^7.0.14",
     "ms-logica-negocio": "file:",
     "parse-bearer-token": "^1.0.1",

@@ -33,6 +33,15 @@ export class SeguridadUsuarioService {
     return cadenaCifrada;
   }
 
+  GeneralTextoAleatorio(n: number): string {
+    let caracteres = 'abcdefghijkmnpqrtuvwxyzABCDEFGHIJKLMNPQRTUVWXYZ2346789';
+    let clave = '';
+    for (let i = 0; i < n; i++)
+      clave += caracteres.charAt(Math.floor(Math.random() * caracteres.length));
+    return clave;
+  }
+
+
   ObtenerRolDesdeUsuario(request: any): number {
     let usuario = request.user;
     let idRol = usuario.rolId;
