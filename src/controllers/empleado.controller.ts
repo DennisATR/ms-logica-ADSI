@@ -51,6 +51,7 @@ export class EmpleadoController {
     })
     empleado: Omit<Empleado, 'id'>,
   ): Promise<Empleado> {
+    empleado.FechaReg = new Date().toISOString();
      // Verificar si el usuario ya existe
      let usuarioExistente = await this.empleadoRepository.findOne({
       where: {Correo: empleado.Correo},
@@ -167,6 +168,20 @@ export class EmpleadoController {
     @param.path.number('id') id: number,
     @requestBody() empleado: Empleado,
   ): Promise<void> {
+    empleado.FechaReg = new Date().toISOString();
+
+    if (empleado.Clave) {
+      empleado.Clave = this.seguridadUsuarioService.cifrarTexto(empleado.Clave);
+    }
+
+    if (empleado.Correo) {
+      let usuarioExistenteCorreo = await this.empleadoRepository.findOne({
+        where: {Correo: empleado.Correo, id: {neq: id}},
+      });
+      if (usuarioExistenteCorreo) {
+        throw new HttpErrors[400]('El correo ya está en uso.');
+      }
+    }
     await this.empleadoRepository.replaceById(id, empleado);
   }
 

@@ -27,10 +27,10 @@ export class ZapatoSerie extends Model {
   Ganancia: number;
 
   @property({
-    type: 'number',
+    type: 'string',
     required: true,
   })
-  PrecioCosto: number;
+  Referencia: string;
 
   @property({
     type: 'number',

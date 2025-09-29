@@ -19,7 +19,7 @@ import {
   requestBody,
   response,
 } from '@loopback/rest';
-import {Zapato, ZapatoSerie} from '../models';
+import {Zapato, ZapatoSerie, ZapatoUnidad} from '../models';
 import {ZapatoRepository} from '../repositories';
 import {StickerService} from '../services';
 
@@ -40,27 +40,34 @@ export class ZapatoController {
     @requestBody({
       content: {
         'application/json': {
-          schema: getModelSchemaRef(Zapato, {
+          schema: getModelSchemaRef(ZapatoUnidad, {
             title: 'NewZapato'
           }),
         },
       },
     })
-    zapato: Zapato,
+    data: ZapatoUnidad,
   ): Promise<Zapato> {
     // Extraer la descripción y categoría para generar el prefijo
-    const { Descripcion, Categoria, Talla, id, ...commonData } = zapato;
+    const { Descripcion, Categoria, Talla, id, Referencia, ...commonData } = data;
 
     let zapatoConId;
+    // Decodificar la referencia en Base64 para obtener el precio
+    const precioDecodificado = parseInt(atob(Referencia));
 
     // Si el ID no es proporcionado, generarlo
     if (id) {
       // Si el ID es proporcionado, lo usamos tal cual
       zapatoConId = {
-        ...zapato,
         id: id,
+        Descripcion: Descripcion,
+        Categoria: Categoria,
+        Talla: Talla,
+        PrecioCosto: precioDecodificado,
+        ...commonData,
       };
     } else {
+
       // Generar el ID si no fue proporcionado
       const prefijoDescripcion = Descripcion.substring(0, 3).toUpperCase();
       const prefijoCategoria = Categoria.substring(0, 3).toUpperCase();
@@ -72,14 +79,15 @@ export class ZapatoController {
       const generatedId = `${prefijoDescripcion}${prefijoCategoria}${consecutivo}${Talla}`;
 
       zapatoConId = {
-        ...zapato,
         id: generatedId,
+        Descripcion: Descripcion,
+        Categoria: Categoria,
+        Talla: Talla,
+        PrecioCosto: precioDecodificado,
+        ...
+        commonData,
       };
     }
-    const zapatoInstance = new Zapato(zapatoConId);
-    const filepath = this.stickerService.generarSticker(zapatoInstance);
-    console.log(filepath);
-
     // Crear el zapato con el ID generado o proporcionado
     return this.zapatoRepository.create(zapatoConId);
   }
@@ -200,7 +208,7 @@ export class ZapatoController {
     })
     data: ZapatoSerie,
   ): Promise<Zapato[]> {
-    const {TallaInicial, TallaFinal, Cantidad, Descripcion, Categoria, ...commonData} = data;
+    const {TallaInicial, TallaFinal, Cantidad, Descripcion, Categoria, Referencia, ...commonData} = data;
 
     if (TallaInicial > TallaFinal) {
       throw new HttpErrors.BadRequest('La talla inicial no puede ser mayor que la talla final.');
@@ -226,6 +234,9 @@ export class ZapatoController {
     const prefijoCategoria = Categoria.substring(0, 3).toUpperCase();
     const consecutivo = await this.obtenerConsecutivo(prefijoDescripcion, prefijoCategoria);
 
+    // Decodificar la referencia en Base64 para obtener el precio
+    const precioDecodificado = parseInt(atob(Referencia));
+
     for (let i = 0; i < totalTallas; i++) {
       const talla = TallaInicial + i;
       const id = `${prefijoDescripcion}${prefijoCategoria}${consecutivo}${talla}`;
@@ -236,6 +247,7 @@ export class ZapatoController {
         Categoria: Categoria,
         Talla: talla,
         Cantidad: cantidades[i],
+        PrecioCosto: precioDecodificado,
         ...commonData,
       };
 

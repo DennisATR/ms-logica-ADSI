@@ -56,12 +56,17 @@
     "@loopback/rest": "^14.0.6",
     "@loopback/rest-explorer": "^7.0.6",
     "@loopback/service-proxy": "^7.0.6",
+    "@types/escpos": "^2.5.5",
     "axios": "^1.7.9",
     "docx": "^9.1.0",
+    "escpos": "^3.0.0-alpha.6",
+    "escpos-usb": "^3.0.0-alpha.4",
     "loopback-connector-mysql": "^7.0.14",
     "ms-logica-negocio": "file:",
     "parse-bearer-token": "^1.0.1",
+    "pdf-to-printer": "^5.6.0",
     "pdfkit": "^0.15.0",
+    "printer": "^0.4.0",
     "tslib": "^2.0.0"
   },
   "devDependencies": {

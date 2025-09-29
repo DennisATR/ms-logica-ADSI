@@ -1,3 +1,4 @@
+import {service} from '@loopback/core';
 import {
   Count,
   CountSchema,
@@ -7,23 +8,26 @@ import {
   Where,
 } from '@loopback/repository';
 import {
-  post,
-  param,
+  del,
   get,
   getModelSchemaRef,
+  param,
   patch,
+  post,
   put,
-  del,
   requestBody,
   response,
 } from '@loopback/rest';
 import {Factura} from '../models';
 import {FacturaRepository} from '../repositories';
+import {ImpresoraService} from '../services';
 
 export class FacturaController {
   constructor(
     @repository(FacturaRepository)
     public facturaRepository : FacturaRepository,
+    @service(ImpresoraService)
+    public impresoraService: ImpresoraService,
   ) {}
 
   @post('/factura')
@@ -44,6 +48,8 @@ export class FacturaController {
     })
     factura: Omit<Factura, 'id'>,
   ): Promise<Factura> {
+    const nuevaFactura = await this.facturaRepository.create(factura);
+    await this.impresoraService.imprimirFactura(nuevaFactura);
     return this.facturaRepository.create(factura);
   }
 
