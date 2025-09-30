@@ -121,6 +121,7 @@ export class ZapatoController {
     return this.zapatoRepository.find(filter);
   }
 
+
   @patch('/zapato')
   @response(200, {
     description: 'Zapato PATCH success count',
@@ -156,6 +157,33 @@ export class ZapatoController {
     return this.zapatoRepository.findById(id, filter);
   }
 
+
+  @get('/zapato/referencia/{id}')
+  @response(200, {
+    description: 'Referencia (PrecioCosto en Base64) de un zapato',
+    content: {
+      'application/json': {
+        schema: {
+          type: 'object',
+          properties: {
+            referencia: { type: 'string' },
+          },
+        },
+      },
+    },
+  })
+  async findByReferencia(
+    @param.path.string('id') id: string,
+  ): Promise<{ referencia: string }> {
+    const zapato = await this.zapatoRepository.findById(id);
+
+    // Convertir PrecioCosto a Base64
+    const referencia = Buffer.from(zapato.PrecioCosto.toString()).toString('base64');
+
+    return { referencia };
+  }
+
+
   @patch('/zapato/{id}')
   @response(204, {
     description: 'Zapato PATCH success',
@@ -174,16 +202,48 @@ export class ZapatoController {
     await this.zapatoRepository.updateById(id, zapato);
   }
 
-  @put('/zapato/{id}')
-  @response(204, {
-    description: 'Zapato PUT success',
+@put('/zapato/{id}')
+@response(204, {
+  description: 'Zapato PUT success',
+})
+async replaceById(
+  @param.path.string('id') id: string,
+  @requestBody({
+    content: {
+      'application/json': {
+        schema: getModelSchemaRef(ZapatoUnidad, {
+          title: 'UpdateZapato',
+        }),
+      },
+    },
   })
-  async replaceById(
-    @param.path.string('id') id: string,
-    @requestBody() zapato: Zapato,
-  ): Promise<void> {
-    await this.zapatoRepository.replaceById(id, zapato);
+  data: ZapatoUnidad,
+): Promise<void> {
+  const { Descripcion, Categoria, Talla, Referencia, ...commonData } = data;
+
+  // Decodificar referencia en Base64
+  let precioDecodificado: number | null = null;
+  if (Referencia && typeof Referencia === 'string') {
+    try {
+      precioDecodificado = parseInt(atob(Referencia));
+    } catch (error) {
+      throw new HttpErrors.BadRequest('Referencia inválida.');
+    }
   }
+
+  // Construir objeto actualizado
+  const zapatoActualizado: Partial<Zapato> = {
+    id, // 👈 el id siempre se respeta
+    Descripcion,
+    Categoria,
+    Talla,
+    PrecioCosto: precioDecodificado ?? 0,
+    ...commonData,
+  };
+
+  await this.zapatoRepository.replaceById(id, zapatoActualizado);
+}
+
 
   @del('/zapato/{id}')
   @response(204, {
