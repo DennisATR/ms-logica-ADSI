@@ -233,7 +233,7 @@ async replaceById(
 
   // Construir objeto actualizado
   const zapatoActualizado: Partial<Zapato> = {
-    id, // 👈 el id siempre se respeta
+    id,
     Descripcion,
     Categoria,
     Talla,

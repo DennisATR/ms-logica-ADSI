@@ -1,4 +1,4 @@
-import {Entity, model, property, hasMany} from '@loopback/repository';
+import {Entity, hasMany, model, property} from '@loopback/repository';
 import {Factura} from './factura.model';
 
 @model()
@@ -9,6 +9,11 @@ export class Cliente extends Entity {
     generated: true,
   })
   id?: number;
+
+  @property({
+    type: 'string',
+  })
+  Identificacion: string;
 
   @property({
     type: 'string',
