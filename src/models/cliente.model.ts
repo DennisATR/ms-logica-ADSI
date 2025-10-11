@@ -23,8 +23,20 @@ export class Cliente extends Entity {
 
   @property({
     type: 'string',
+    required: true,
+  })
+  Apellido: string;
+
+  @property({
+    type: 'string',
+    required: true,
   })
   Ciudad?: string;
+
+  @property({
+    type: 'string',
+  })
+  Barrio?: string;
 
   @property({
     type: 'string',

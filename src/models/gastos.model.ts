@@ -27,6 +27,11 @@ export class Gastos extends Entity {
   })
   Concepto: string;
 
+  @property({
+    type: 'string'
+  })
+  Descripcion: string;
+
 
   constructor(data?: Partial<Gastos>) {
     super(data);
