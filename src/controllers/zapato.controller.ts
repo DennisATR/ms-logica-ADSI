@@ -26,10 +26,10 @@ import {StickerService} from '../services';
 export class ZapatoController {
   constructor(
     @repository(ZapatoRepository)
-    public zapatoRepository : ZapatoRepository,
+    public zapatoRepository: ZapatoRepository,
     @service(StickerService)
     public stickerService: StickerService
-  ) {}
+  ) { }
 
   @post('/zapato')
   @response(200, {
@@ -49,11 +49,21 @@ export class ZapatoController {
     data: ZapatoUnidad,
   ): Promise<Zapato> {
     // Extraer la descripción y categoría para generar el prefijo
-    const { Descripcion, Categoria, Talla, id, Referencia, ...commonData } = data;
+    const {Descripcion, Categoria, Talla, id, Referencia, PrecioVentaMax, PrecioVentaMin, ...commonData} = data;
 
     let zapatoConId;
     // Decodificar la referencia en Base64 para obtener el precio
-    const precioDecodificado = parseInt(atob(Referencia));
+    let precioDecodificado: number;
+    try {
+      precioDecodificado = parseInt(atob(Referencia));
+      if (isNaN(precioDecodificado)) throw new Error();
+    } catch {
+      throw new HttpErrors.BadRequest('Referencia inválida.');
+    }
+
+    if (PrecioVentaMax < PrecioVentaMin) {
+      throw new HttpErrors.BadRequest('El precio de venta mínimo no puede ser mayor que el máximo.');
+    }
 
     // Si el ID no es proporcionado, generarlo
     if (id) {
@@ -64,6 +74,8 @@ export class ZapatoController {
         Categoria: Categoria,
         Talla: Talla,
         PrecioCosto: precioDecodificado,
+        PrecioVentaMax: PrecioVentaMax,
+        PrecioVentaMin: PrecioVentaMin,
         ...commonData,
       };
     } else {
@@ -84,12 +96,14 @@ export class ZapatoController {
         Categoria: Categoria,
         Talla: Talla,
         PrecioCosto: precioDecodificado,
+        PrecioVentaMax: PrecioVentaMax,
+        PrecioVentaMin: PrecioVentaMin,
         ...
         commonData,
       };
     }
     // Crear el zapato con el ID generado o proporcionado
-    return this.zapatoRepository.create(zapatoConId);
+    return this.zapatoRepository.create(zapatoConId)
   }
 
   @get('/zapato/count')
@@ -166,7 +180,7 @@ export class ZapatoController {
         schema: {
           type: 'object',
           properties: {
-            referencia: { type: 'string' },
+            referencia: {type: 'string'},
           },
         },
       },
@@ -174,13 +188,13 @@ export class ZapatoController {
   })
   async findByReferencia(
     @param.path.string('id') id: string,
-  ): Promise<{ referencia: string }> {
+  ): Promise<{referencia: string}> {
     const zapato = await this.zapatoRepository.findById(id);
 
     // Convertir PrecioCosto a Base64
     const referencia = Buffer.from(zapato.PrecioCosto.toString()).toString('base64');
 
-    return { referencia };
+    return {referencia};
   }
 
 
@@ -202,47 +216,52 @@ export class ZapatoController {
     await this.zapatoRepository.updateById(id, zapato);
   }
 
-@put('/zapato/{id}')
-@response(204, {
-  description: 'Zapato PUT success',
-})
-async replaceById(
-  @param.path.string('id') id: string,
-  @requestBody({
-    content: {
-      'application/json': {
-        schema: getModelSchemaRef(ZapatoUnidad, {
-          title: 'UpdateZapato',
-        }),
-      },
-    },
+  @put('/zapato/{id}')
+  @response(204, {
+    description: 'Zapato PUT success',
   })
-  data: ZapatoUnidad,
-): Promise<void> {
-  const { Descripcion, Categoria, Talla, Referencia, ...commonData } = data;
+  async replaceById(
+    @param.path.string('id') id: string,
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: getModelSchemaRef(ZapatoUnidad, {
+            title: 'UpdateZapato',
+          }),
+        },
+      },
+    })
+    data: ZapatoUnidad,
+  ): Promise<void> {
+    const {Descripcion, Categoria, Talla, Referencia, PrecioVentaMax, PrecioVentaMin, ...commonData} = data;
 
-  // Decodificar referencia en Base64
-  let precioDecodificado: number | null = null;
-  if (Referencia && typeof Referencia === 'string') {
+    // Decodificar referencia en Base64
+    let precioDecodificado: number;
     try {
       precioDecodificado = parseInt(atob(Referencia));
-    } catch (error) {
+      if (isNaN(precioDecodificado)) throw new Error();
+    } catch {
       throw new HttpErrors.BadRequest('Referencia inválida.');
     }
+
+    if (PrecioVentaMax < PrecioVentaMin) {
+      throw new HttpErrors.BadRequest('El precio de venta mínimo no puede ser mayor que el máximo.');
+    }
+
+    // Construir objeto actualizado
+    const zapatoActualizado: Partial<Zapato> = {
+      id,
+      Descripcion,
+      Categoria,
+      Talla,
+      PrecioCosto: precioDecodificado ?? 0,
+      PrecioVentaMax: PrecioVentaMax,
+      PrecioVentaMin: PrecioVentaMin,
+      ...commonData,
+    };
+
+    await this.zapatoRepository.replaceById(id, zapatoActualizado);
   }
-
-  // Construir objeto actualizado
-  const zapatoActualizado: Partial<Zapato> = {
-    id,
-    Descripcion,
-    Categoria,
-    Talla,
-    PrecioCosto: precioDecodificado ?? 0,
-    ...commonData,
-  };
-
-  await this.zapatoRepository.replaceById(id, zapatoActualizado);
-}
 
 
   @del('/zapato/{id}')
@@ -268,55 +287,75 @@ async replaceById(
     })
     data: ZapatoSerie,
   ): Promise<Zapato[]> {
-    const {TallaInicial, TallaFinal, Cantidad, Descripcion, Categoria, Referencia, ...commonData} = data;
+    const {TallaInicial, TallaFinal, Cantidad, Descripcion, Categoria, Referencia, Prefijo, PrecioVentaMax, PrecioVentaMin, ...commonData} = data;
 
     if (TallaInicial > TallaFinal) {
       throw new HttpErrors.BadRequest('La talla inicial no puede ser mayor que la talla final.');
     }
 
+    if (PrecioVentaMax < PrecioVentaMin) {
+      throw new HttpErrors.BadRequest('El precio de venta mínimo no puede ser mayor que el máximo.');
+    }
+
     const zapatosCreados: Zapato[] = [];
     const totalTallas = TallaFinal - TallaInicial + 1;
 
-    // Determinar cantidades para cada zapato
     let cantidades: number[] = [];
     if (Array.isArray(Cantidad)) {
-      // Si `Cantidad` es un array, asignar según índice o completar con `1`
       cantidades = Cantidad.concat(Array(totalTallas - Cantidad.length).fill(1));
     } else if (typeof Cantidad === 'number') {
-      // Si `Cantidad` es un número, asignar uniformemente
       cantidades = Array(totalTallas).fill(Cantidad);
     } else {
-      throw new HttpErrors.BadRequest('El campo Cantidad debe ser un número o un array de números.');
+      throw new HttpErrors.BadRequest('El campo Cantidad debe ser un número o una serie de números separados por "," .');
     }
 
-    // Generar consecutivo de la serie solo una vez
-    const prefijoDescripcion = Descripcion.substring(0, 3).toUpperCase();
-    const prefijoCategoria = Categoria.substring(0, 3).toUpperCase();
-    const consecutivo = await this.obtenerConsecutivo(prefijoDescripcion, prefijoCategoria);
+    let precioDecodificado: number;
+    try {
+      precioDecodificado = parseInt(atob(Referencia));
+      if (isNaN(precioDecodificado)) throw new Error();
+    } catch {
+      throw new HttpErrors.BadRequest('Referencia inválida.');
+    }
 
-    // Decodificar la referencia en Base64 para obtener el precio
-    const precioDecodificado = parseInt(atob(Referencia));
+    let prefijoFinal = Prefijo;
+    if (!prefijoFinal) {
+      const prefijoDescripcion = Descripcion.substring(0, 3).toUpperCase();
+      const prefijoCategoria = Categoria.substring(0, 3).toUpperCase();
+      const consecutivo = await this.obtenerConsecutivo(prefijoDescripcion, prefijoCategoria);
+      prefijoFinal = `${prefijoDescripcion}${prefijoCategoria}${consecutivo}`;
+    }
 
     for (let i = 0; i < totalTallas; i++) {
       const talla = TallaInicial + i;
-      const id = `${prefijoDescripcion}${prefijoCategoria}${consecutivo}${talla}`;
+      const id = `${prefijoFinal}${talla}`;
 
       const zapatoData = {
-        id: id,
-        Descripcion: Descripcion,
-        Categoria: Categoria,
+        id,
+        Descripcion,
+        Categoria,
         Talla: talla,
         Cantidad: cantidades[i],
         PrecioCosto: precioDecodificado,
+        PrecioVentaMax: PrecioVentaMax,
+        PrecioVentaMin: PrecioVentaMin,
         ...commonData,
       };
 
-      const nuevoZapato = await this.zapatoRepository.create(zapatoData);
-      zapatosCreados.push(nuevoZapato);
+      try {
+        const nuevoZapato = await this.zapatoRepository.create(zapatoData);
+        zapatosCreados.push(nuevoZapato);
+      } catch (error: any) {
+        if (error.code === 'ER_DUP_ENTRY') {
+          throw new HttpErrors.UnprocessableEntity(`El zapato con ID '${id}' ya existe en la base de datos.`);
+        }
+        throw new HttpErrors.InternalServerError(`Error al crear zapato con talla ${talla}.`);
+      }
     }
 
     return zapatosCreados;
   }
+
+
 
   // Método para obtener el consecutivo actual basado en descripción y categoría
   async obtenerConsecutivo(prefijoDescripcion: string, prefijoCategoria: string): Promise<string> {

@@ -26,12 +26,12 @@ import {SeguridadUsuarioService} from '../services';
 export class EmpleadoController {
   constructor(
     @repository(EmpleadoRepository)
-    public empleadoRepository : EmpleadoRepository,
+    public empleadoRepository: EmpleadoRepository,
     @service(SeguridadUsuarioService)
     public seguridadUsuarioService: SeguridadUsuarioService,
     @repository(LoginRepository)
     public loginRepository: LoginRepository,
-  ) {}
+  ) { }
 
   @post('/empleado')
   @response(200, {
@@ -52,29 +52,22 @@ export class EmpleadoController {
     empleado: Omit<Empleado, 'id'>,
   ): Promise<Empleado> {
     empleado.FechaReg = new Date().toISOString();
-     // Verificar si el usuario ya existe
-     let usuarioExistente = await this.empleadoRepository.findOne({
+    // Verificar si ya existe un empleado con el mismo correo
+    const existente = await this.empleadoRepository.findOne({
       where: {Correo: empleado.Correo},
     });
 
-    if (usuarioExistente) {
-      throw new HttpErrors[400]('El usuario ya existe.');
+    if (existente) {
+      throw new HttpErrors.UnprocessableEntity(`El correo '${empleado.Correo}' ya está en uso.`);
     }
 
-    // Verifica si el correo es unico o ya no hay un usuario con ese correo
-    let usuarioExistenteCorreo = await this.empleadoRepository.findOne({
-      where: {Correo: empleado.Correo},
-    });
-    if (usuarioExistenteCorreo) {
-      throw new HttpErrors[400]('El correo ya esta en uso.');
-    }
     // Cifrar la clave
-    let claveCifrada;
-    if (empleado.Clave) {
-      claveCifrada = this.seguridadUsuarioService.cifrarTexto(empleado.Clave);
+    try {
+      empleado.Clave = this.seguridadUsuarioService.cifrarTexto(empleado.Clave);
+    } catch (error) {
+      throw new HttpErrors.InternalServerError('Error al cifrar la clave del usuario.');
     }
-    // Asignar la clave al usuario
-    empleado.Clave = claveCifrada || '';
+
     return this.empleadoRepository.create(empleado);
   }
 
@@ -179,7 +172,7 @@ export class EmpleadoController {
         where: {Correo: empleado.Correo, id: {neq: id}},
       });
       if (usuarioExistenteCorreo) {
-        throw new HttpErrors[400]('El correo ya está en uso.');
+        throw new HttpErrors.BadRequest(`El correo '${empleado.Correo}' ya se encuentra en uso por otro usuario.`);
       }
     }
     await this.empleadoRepository.replaceById(id, empleado);
@@ -219,29 +212,29 @@ export class EmpleadoController {
     return new HttpErrors[401]('Credenciales incorrectas. ');
   }
 
-   /* El método `cambiarClave` es un endpoint POST que permite al usuario
+  /* El método `cambiarClave` es un endpoint POST que permite al usuario
 cambiar su contraseña. Se necesita un cuerpo de solicitud que contiene el
 modelo `CambioClave`, que representa la dirección de correo electrónico del
 usuario, su contraseña actual y la contraseña nueva. */
-@patch('/cambiar-clave')
-@response(200, {
-  description: 'Usuario model instance',
-  content: {'application/json': {schema: getModelSchemaRef(Empleado)}},
-})
-async cambiarClave(
-  @requestBody({
-    content: {
-      'application/json': {
-        schema: getModelSchemaRef(CambioClave, {partial: true}),
-      },
-    },
+  @patch('/cambiar-clave')
+  @response(200, {
+    description: 'Usuario model instance',
+    content: {'application/json': {schema: getModelSchemaRef(Empleado)}},
   })
-  cambioClave: CambioClave,
-): Promise<object> {
-  const credenciales = {
-    correo: cambioClave.correo,
-    clave: cambioClave.claveActual,
-  };
+  async cambiarClave(
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: getModelSchemaRef(CambioClave, {partial: true}),
+        },
+      },
+    })
+    cambioClave: CambioClave,
+  ): Promise<object> {
+    const credenciales = {
+      correo: cambioClave.correo,
+      clave: cambioClave.claveActual,
+    };
 
     //Cifrar la clave ingresada por el usuario.
     credenciales.clave = this.seguridadUsuarioService.cifrarTexto(credenciales.clave);

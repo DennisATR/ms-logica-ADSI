@@ -7,13 +7,14 @@ import {
   Where,
 } from '@loopback/repository';
 import {
-  post,
-  param,
+  del,
   get,
   getModelSchemaRef,
+  HttpErrors,
+  param,
   patch,
+  post,
   put,
-  del,
   requestBody,
   response,
 } from '@loopback/rest';
@@ -23,8 +24,8 @@ import {ClienteRepository} from '../repositories';
 export class ClienteController {
   constructor(
     @repository(ClienteRepository)
-    public clienteRepository : ClienteRepository,
-  ) {}
+    public clienteRepository: ClienteRepository,
+  ) { }
 
   @post('/cliente')
   @response(200, {
@@ -44,7 +45,14 @@ export class ClienteController {
     })
     cliente: Omit<Cliente, 'id'>,
   ): Promise<Cliente> {
-    return this.clienteRepository.create(cliente);
+    try {
+      return await this.clienteRepository.create(cliente);
+    } catch (error: any) {
+      if (error.code === 'ER_DUP_ENTRY') {
+        throw new HttpErrors.UnprocessableEntity('El cliente ya existe en la base de datos.');
+      }
+      throw new HttpErrors.InternalServerError(`Error al crear el cliente: ${error.message}`);
+    }
   }
 
   @get('/cliente/count')

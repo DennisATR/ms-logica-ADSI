@@ -2,6 +2,12 @@ import {Model, model, property} from '@loopback/repository';
 
 @model()
 export class ZapatoSerie extends Model {
+
+  @property({
+    type: 'string'
+  })
+  Prefijo: string;
+
   @property({
     type: 'string',
     required: true,
