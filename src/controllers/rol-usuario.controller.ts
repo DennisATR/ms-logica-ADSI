@@ -17,22 +17,22 @@ import {
 } from '@loopback/rest';
 import {
   Rol,
-  Empleado,
+  Usuario,
 } from '../models';
 import {RolRepository} from '../repositories';
 
-export class RolEmpleadoController {
+export class RolUsuarioController {
   constructor(
     @repository(RolRepository) protected rolRepository: RolRepository,
   ) { }
 
-  @get('/rols/{id}/empleados', {
+  @get('/rols/{id}/usuarios', {
     responses: {
       '200': {
-        description: 'Array of Rol has many Empleado',
+        description: 'Array of Rol has many Usuario',
         content: {
           'application/json': {
-            schema: {type: 'array', items: getModelSchemaRef(Empleado)},
+            schema: {type: 'array', items: getModelSchemaRef(Usuario)},
           },
         },
       },
@@ -40,16 +40,16 @@ export class RolEmpleadoController {
   })
   async find(
     @param.path.number('id') id: number,
-    @param.query.object('filter') filter?: Filter<Empleado>,
-  ): Promise<Empleado[]> {
-    return this.rolRepository.empleados(id).find(filter);
+    @param.query.object('filter') filter?: Filter<Usuario>,
+  ): Promise<Usuario[]> {
+    return this.rolRepository.usuarios(id).find(filter);
   }
 
-  @post('/rols/{id}/empleados', {
+  @post('/rols/{id}/usuarios', {
     responses: {
       '200': {
         description: 'Rol model instance',
-        content: {'application/json': {schema: getModelSchemaRef(Empleado)}},
+        content: {'application/json': {schema: getModelSchemaRef(Usuario)}},
       },
     },
   })
@@ -58,22 +58,22 @@ export class RolEmpleadoController {
     @requestBody({
       content: {
         'application/json': {
-          schema: getModelSchemaRef(Empleado, {
-            title: 'NewEmpleadoInRol',
+          schema: getModelSchemaRef(Usuario, {
+            title: 'NewUsuarioInRol',
             exclude: ['id'],
             optional: ['rolId']
           }),
         },
       },
-    }) empleado: Omit<Empleado, 'id'>,
-  ): Promise<Empleado> {
-    return this.rolRepository.empleados(id).create(empleado);
+    }) usuario: Omit<Usuario, 'id'>,
+  ): Promise<Usuario> {
+    return this.rolRepository.usuarios(id).create(usuario);
   }
 
-  @patch('/rols/{id}/empleados', {
+  @patch('/rols/{id}/usuarios', {
     responses: {
       '200': {
-        description: 'Rol.Empleado PATCH success count',
+        description: 'Rol.Usuario PATCH success count',
         content: {'application/json': {schema: CountSchema}},
       },
     },
@@ -83,28 +83,28 @@ export class RolEmpleadoController {
     @requestBody({
       content: {
         'application/json': {
-          schema: getModelSchemaRef(Empleado, {partial: true}),
+          schema: getModelSchemaRef(Usuario, {partial: true}),
         },
       },
     })
-    empleado: Partial<Empleado>,
-    @param.query.object('where', getWhereSchemaFor(Empleado)) where?: Where<Empleado>,
+    usuario: Partial<Usuario>,
+    @param.query.object('where', getWhereSchemaFor(Usuario)) where?: Where<Usuario>,
   ): Promise<Count> {
-    return this.rolRepository.empleados(id).patch(empleado, where);
+    return this.rolRepository.usuarios(id).patch(usuario, where);
   }
 
-  @del('/rols/{id}/empleados', {
+  @del('/rols/{id}/usuarios', {
     responses: {
       '200': {
-        description: 'Rol.Empleado DELETE success count',
+        description: 'Rol.Usuario DELETE success count',
         content: {'application/json': {schema: CountSchema}},
       },
     },
   })
   async delete(
     @param.path.number('id') id: number,
-    @param.query.object('where', getWhereSchemaFor(Empleado)) where?: Where<Empleado>,
+    @param.query.object('where', getWhereSchemaFor(Usuario)) where?: Where<Usuario>,
   ): Promise<Count> {
-    return this.rolRepository.empleados(id).delete(where);
+    return this.rolRepository.usuarios(id).delete(where);
   }
 }

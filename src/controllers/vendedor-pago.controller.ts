@@ -16,20 +16,20 @@ import {
   requestBody,
 } from '@loopback/rest';
 import {
-  Empleado,
+  Vendedor,
   Pago,
 } from '../models';
-import {EmpleadoRepository} from '../repositories';
+import {VendedorRepository} from '../repositories';
 
-export class EmpleadoPagoController {
+export class VendedorPagoController {
   constructor(
-    @repository(EmpleadoRepository) protected empleadoRepository: EmpleadoRepository,
+    @repository(VendedorRepository) protected vendedorRepository: VendedorRepository,
   ) { }
 
-  @get('/empleados/{id}/pagos', {
+  @get('/vendedors/{id}/pagos', {
     responses: {
       '200': {
-        description: 'Array of Empleado has many Pago',
+        description: 'Array of Vendedor has many Pago',
         content: {
           'application/json': {
             schema: {type: 'array', items: getModelSchemaRef(Pago)},
@@ -39,47 +39,47 @@ export class EmpleadoPagoController {
     },
   })
   async find(
-    @param.path.number('id') id: number,
+    @param.path.string('id') id: string,
     @param.query.object('filter') filter?: Filter<Pago>,
   ): Promise<Pago[]> {
-    return this.empleadoRepository.pagos(id).find(filter);
+    return this.vendedorRepository.pagos(id).find(filter);
   }
 
-  @post('/empleados/{id}/pagos', {
+  @post('/vendedors/{id}/pagos', {
     responses: {
       '200': {
-        description: 'Empleado model instance',
+        description: 'Vendedor model instance',
         content: {'application/json': {schema: getModelSchemaRef(Pago)}},
       },
     },
   })
   async create(
-    @param.path.number('id') id: typeof Empleado.prototype.id,
+    @param.path.string('id') id: typeof Vendedor.prototype.id,
     @requestBody({
       content: {
         'application/json': {
           schema: getModelSchemaRef(Pago, {
-            title: 'NewPagoInEmpleado',
+            title: 'NewPagoInVendedor',
             exclude: ['id'],
-            optional: ['empleadoId']
+            optional: ['vendedorId']
           }),
         },
       },
     }) pago: Omit<Pago, 'id'>,
   ): Promise<Pago> {
-    return this.empleadoRepository.pagos(id).create(pago);
+    return this.vendedorRepository.pagos(id).create(pago);
   }
 
-  @patch('/empleados/{id}/pagos', {
+  @patch('/vendedors/{id}/pagos', {
     responses: {
       '200': {
-        description: 'Empleado.Pago PATCH success count',
+        description: 'Vendedor.Pago PATCH success count',
         content: {'application/json': {schema: CountSchema}},
       },
     },
   })
   async patch(
-    @param.path.number('id') id: number,
+    @param.path.string('id') id: string,
     @requestBody({
       content: {
         'application/json': {
@@ -90,21 +90,21 @@ export class EmpleadoPagoController {
     pago: Partial<Pago>,
     @param.query.object('where', getWhereSchemaFor(Pago)) where?: Where<Pago>,
   ): Promise<Count> {
-    return this.empleadoRepository.pagos(id).patch(pago, where);
+    return this.vendedorRepository.pagos(id).patch(pago, where);
   }
 
-  @del('/empleados/{id}/pagos', {
+  @del('/vendedors/{id}/pagos', {
     responses: {
       '200': {
-        description: 'Empleado.Pago DELETE success count',
+        description: 'Vendedor.Pago DELETE success count',
         content: {'application/json': {schema: CountSchema}},
       },
     },
   })
   async delete(
-    @param.path.number('id') id: number,
+    @param.path.string('id') id: string,
     @param.query.object('where', getWhereSchemaFor(Pago)) where?: Where<Pago>,
   ): Promise<Count> {
-    return this.empleadoRepository.pagos(id).delete(where);
+    return this.vendedorRepository.pagos(id).delete(where);
   }
 }

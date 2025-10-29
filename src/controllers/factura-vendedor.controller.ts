@@ -8,31 +8,31 @@ import {
 } from '@loopback/rest';
 import {
   Factura,
-  Empleado,
+  Vendedor,
 } from '../models';
 import {FacturaRepository} from '../repositories';
 
-export class FacturaEmpleadoController {
+export class FacturaVendedorController {
   constructor(
     @repository(FacturaRepository)
     public facturaRepository: FacturaRepository,
   ) { }
 
-  @get('/facturas/{id}/empleado', {
+  @get('/facturas/{id}/vendedor', {
     responses: {
       '200': {
-        description: 'Empleado belonging to Factura',
+        description: 'Vendedor belonging to Factura',
         content: {
           'application/json': {
-            schema: getModelSchemaRef(Empleado),
+            schema: getModelSchemaRef(Vendedor),
           },
         },
       },
     },
   })
-  async getEmpleado(
+  async getVendedor(
     @param.path.number('id') id: typeof Factura.prototype.id,
-  ): Promise<Empleado> {
-    return this.facturaRepository.empleado(id);
+  ): Promise<Vendedor> {
+    return this.facturaRepository.vendedor(id);
   }
 }

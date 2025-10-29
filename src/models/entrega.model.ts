@@ -11,8 +11,9 @@ export class Entrega extends Entity {
 
   @property({
     type: 'string',
+    required: true,
   })
-  Descripcion?: string;
+  Remitente?: string;
 
   @property({
     type: 'string',

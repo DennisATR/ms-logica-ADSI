@@ -16,20 +16,20 @@ import {
   requestBody,
 } from '@loopback/rest';
 import {
-  Empleado,
+  Vendedor,
   Factura,
 } from '../models';
-import {EmpleadoRepository} from '../repositories';
+import {VendedorRepository} from '../repositories';
 
-export class EmpleadoFacturaController {
+export class VendedorFacturaController {
   constructor(
-    @repository(EmpleadoRepository) protected empleadoRepository: EmpleadoRepository,
+    @repository(VendedorRepository) protected vendedorRepository: VendedorRepository,
   ) { }
 
-  @get('/empleados/{id}/facturas', {
+  @get('/vendedors/{id}/facturas', {
     responses: {
       '200': {
-        description: 'Array of Empleado has many Factura',
+        description: 'Array of Vendedor has many Factura',
         content: {
           'application/json': {
             schema: {type: 'array', items: getModelSchemaRef(Factura)},
@@ -39,47 +39,47 @@ export class EmpleadoFacturaController {
     },
   })
   async find(
-    @param.path.number('id') id: number,
+    @param.path.string('id') id: string,
     @param.query.object('filter') filter?: Filter<Factura>,
   ): Promise<Factura[]> {
-    return this.empleadoRepository.facturas(id).find(filter);
+    return this.vendedorRepository.facturas(id).find(filter);
   }
 
-  @post('/empleados/{id}/facturas', {
+  @post('/vendedors/{id}/facturas', {
     responses: {
       '200': {
-        description: 'Empleado model instance',
+        description: 'Vendedor model instance',
         content: {'application/json': {schema: getModelSchemaRef(Factura)}},
       },
     },
   })
   async create(
-    @param.path.number('id') id: typeof Empleado.prototype.id,
+    @param.path.string('id') id: typeof Vendedor.prototype.id,
     @requestBody({
       content: {
         'application/json': {
           schema: getModelSchemaRef(Factura, {
-            title: 'NewFacturaInEmpleado',
+            title: 'NewFacturaInVendedor',
             exclude: ['id'],
-            optional: ['empleadoId']
+            optional: ['vendedorId']
           }),
         },
       },
     }) factura: Omit<Factura, 'id'>,
   ): Promise<Factura> {
-    return this.empleadoRepository.facturas(id).create(factura);
+    return this.vendedorRepository.facturas(id).create(factura);
   }
 
-  @patch('/empleados/{id}/facturas', {
+  @patch('/vendedors/{id}/facturas', {
     responses: {
       '200': {
-        description: 'Empleado.Factura PATCH success count',
+        description: 'Vendedor.Factura PATCH success count',
         content: {'application/json': {schema: CountSchema}},
       },
     },
   })
   async patch(
-    @param.path.number('id') id: number,
+    @param.path.string('id') id: string,
     @requestBody({
       content: {
         'application/json': {
@@ -90,21 +90,21 @@ export class EmpleadoFacturaController {
     factura: Partial<Factura>,
     @param.query.object('where', getWhereSchemaFor(Factura)) where?: Where<Factura>,
   ): Promise<Count> {
-    return this.empleadoRepository.facturas(id).patch(factura, where);
+    return this.vendedorRepository.facturas(id).patch(factura, where);
   }
 
-  @del('/empleados/{id}/facturas', {
+  @del('/vendedors/{id}/facturas', {
     responses: {
       '200': {
-        description: 'Empleado.Factura DELETE success count',
+        description: 'Vendedor.Factura DELETE success count',
         content: {'application/json': {schema: CountSchema}},
       },
     },
   })
   async delete(
-    @param.path.number('id') id: number,
+    @param.path.string('id') id: string,
     @param.query.object('where', getWhereSchemaFor(Factura)) where?: Where<Factura>,
   ): Promise<Count> {
-    return this.empleadoRepository.facturas(id).delete(where);
+    return this.vendedorRepository.facturas(id).delete(where);
   }
 }

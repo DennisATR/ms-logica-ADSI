@@ -2,23 +2,23 @@ import { /* inject, */ BindingScope, injectable} from '@loopback/core';
 import {repository} from '@loopback/repository';
 import {
   Credenciales,
-  Empleado,
   MenuDelRol,
+  Usuario,
 } from '../models';
 import {
-  EmpleadoRepository,
   MenuDelRolRepository,
+  UsuarioRepository,
 } from '../repositories';
 const MD5 = require('crypto-js/MD5');
 
 @injectable({scope: BindingScope.TRANSIENT})
 export class SeguridadUsuarioService {
   constructor(
-    @repository(EmpleadoRepository)
-    public repositoriUsuario: EmpleadoRepository,
+    @repository(UsuarioRepository)
+    public repositoryUsuario: UsuarioRepository,
     @repository(MenuDelRolRepository)
     public repositoryRolMenu: MenuDelRolRepository,
-  ) {}
+  ) { }
 
   /**
    * La función cifrarTexto toma una cadena como entrada, la cifra usando el
@@ -58,14 +58,14 @@ export class SeguridadUsuarioService {
    */
   async identificarUsuario(
     credenciales: Credenciales,
-  ): Promise<Empleado | null> {
-    let empleado = await this.repositoriUsuario.findOne({
+  ): Promise<Usuario | null> {
+    let usuario = await this.repositoryUsuario.findOne({
       where: {
         Correo: credenciales.correo,
         Clave: credenciales.clave,
       },
     });
-    return empleado as Empleado;
+    return usuario as Usuario;
   }
 
 
@@ -81,12 +81,12 @@ export class SeguridadUsuarioService {
 
   //necesito un metodo que dado un correo, me busque en la base de datos, si el correo esta en la base me muestre un error
   //si el correo no esta en la base me permita crear un usuario nuevo
-  async buscarUsuarioPorCorreo(correo: string): Promise<Empleado | null> {
-    let empleado = await this.repositoriUsuario.findOne({
+  async buscarUsuarioPorCorreo(correo: string): Promise<Usuario | null> {
+    let usuario = await this.repositoryUsuario.findOne({
       where: {
         Correo: correo,
       },
     });
-    return empleado as Empleado;
+    return usuario as Usuario;
   }
 }

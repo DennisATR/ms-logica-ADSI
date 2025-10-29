@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import {App, ApplicationConfig} from './application';
 
 export * from './application';

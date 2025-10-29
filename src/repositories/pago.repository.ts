@@ -1,8 +1,8 @@
-import {inject, Getter} from '@loopback/core';
-import {DefaultCrudRepository, repository, BelongsToAccessor} from '@loopback/repository';
+import {Getter, inject} from '@loopback/core';
+import {BelongsToAccessor, DefaultCrudRepository, repository} from '@loopback/repository';
 import {MysqlDataSource} from '../datasources';
-import {Pago, PagoRelations, Empleado} from '../models';
-import {EmpleadoRepository} from './empleado.repository';
+import {Pago, PagoRelations, Vendedor} from '../models';
+import {VendedorRepository} from './vendedor.repository';
 
 export class PagoRepository extends DefaultCrudRepository<
   Pago,
@@ -10,13 +10,13 @@ export class PagoRepository extends DefaultCrudRepository<
   PagoRelations
 > {
 
-  public readonly empleado: BelongsToAccessor<Empleado, typeof Pago.prototype.id>;
+  public readonly vendedor: BelongsToAccessor<Vendedor, typeof Pago.prototype.id>;
 
   constructor(
-    @inject('datasources.mysql') dataSource: MysqlDataSource, @repository.getter('EmpleadoRepository') protected empleadoRepositoryGetter: Getter<EmpleadoRepository>,
+    @inject('datasources.mysql') dataSource: MysqlDataSource, @repository.getter('VendedorRepository') protected vendedorRepositoryGetter: Getter<VendedorRepository>,
   ) {
     super(Pago, dataSource);
-    this.empleado = this.createBelongsToAccessorFor('empleado', empleadoRepositoryGetter,);
-    this.registerInclusionResolver('empleado', this.empleado.inclusionResolver);
+    this.vendedor = this.createBelongsToAccessorFor('vendedor', vendedorRepositoryGetter,);
+    this.registerInclusionResolver('vendedor', this.vendedor.inclusionResolver);
   }
 }

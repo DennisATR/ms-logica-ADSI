@@ -4,7 +4,6 @@ export * from './credenciales.model';
 export * from './credito.model';
 export * from './cuenta.model';
 export * from './devolucion.model';
-export * from './empleado.model';
 export * from './entrega.model';
 export * from './factura.model';
 export * from './gastos.model';
@@ -20,9 +19,10 @@ export * from './proveedor.model';
 export * from './recuperar-clave.model';
 export * from './reportes.model';
 export * from './rol.model';
+export * from './usuario.model';
+export * from './vendedor.model';
 export * from './venta.model';
 export * from './zapato.model';
 export * from './zapatoSerie.model';
 export * from './zapatoUnidad.model';
-
 

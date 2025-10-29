@@ -8,31 +8,31 @@ import {
 } from '@loopback/rest';
 import {
   Login,
-  Empleado,
+  Usuario,
 } from '../models';
 import {LoginRepository} from '../repositories';
 
-export class LoginEmpleadoController {
+export class LoginUsuarioController {
   constructor(
     @repository(LoginRepository)
     public loginRepository: LoginRepository,
   ) { }
 
-  @get('/logins/{id}/empleado', {
+  @get('/logins/{id}/usuario', {
     responses: {
       '200': {
-        description: 'Empleado belonging to Login',
+        description: 'Usuario belonging to Login',
         content: {
           'application/json': {
-            schema: getModelSchemaRef(Empleado),
+            schema: getModelSchemaRef(Usuario),
           },
         },
       },
     },
   })
-  async getEmpleado(
+  async getUsuario(
     @param.path.number('id') id: typeof Login.prototype.id,
-  ): Promise<Empleado> {
-    return this.loginRepository.empleado(id);
+  ): Promise<Usuario> {
+    return this.loginRepository.usuario(id);
   }
 }

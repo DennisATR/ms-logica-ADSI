@@ -27,12 +27,6 @@ export class ZapatoSerie extends Model {
   Color: string;
 
   @property({
-    type: 'number',
-    required: true,
-  })
-  Ganancia: number;
-
-  @property({
     type: 'string',
     required: true,
   })

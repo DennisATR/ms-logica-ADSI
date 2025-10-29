@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import {App} from './application';
 
 export async function migrate(args: string[]) {

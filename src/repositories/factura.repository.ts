@@ -1,13 +1,13 @@
-import {inject, Getter} from '@loopback/core';
-import {DefaultCrudRepository, repository, BelongsToAccessor, HasManyThroughRepositoryFactory, HasManyRepositoryFactory} from '@loopback/repository';
+import {Getter, inject} from '@loopback/core';
+import {BelongsToAccessor, DefaultCrudRepository, HasManyRepositoryFactory, HasManyThroughRepositoryFactory, repository} from '@loopback/repository';
 import {MysqlDataSource} from '../datasources';
-import {Factura, FacturaRelations, MetodoPago, Zapato, Venta, Credito, Cliente, Empleado} from '../models';
+import {Cliente, Credito, Factura, FacturaRelations, MetodoPago, Vendedor, Venta, Zapato} from '../models';
+import {ClienteRepository} from './cliente.repository';
+import {CreditoRepository} from './credito.repository';
 import {MetodoPagoRepository} from './metodo-pago.repository';
+import {VendedorRepository} from './vendedor.repository';
 import {VentaRepository} from './venta.repository';
 import {ZapatoRepository} from './zapato.repository';
-import {CreditoRepository} from './credito.repository';
-import {ClienteRepository} from './cliente.repository';
-import {EmpleadoRepository} from './empleado.repository';
 
 export class FacturaRepository extends DefaultCrudRepository<
   Factura,
@@ -18,22 +18,22 @@ export class FacturaRepository extends DefaultCrudRepository<
   public readonly metodoPago: BelongsToAccessor<MetodoPago, typeof Factura.prototype.id>;
 
   public readonly zapatos: HasManyThroughRepositoryFactory<Zapato, typeof Zapato.prototype.id,
-          Venta,
-          typeof Factura.prototype.id
-        >;
+    Venta,
+    typeof Factura.prototype.id
+  >;
 
   public readonly creditos: HasManyRepositoryFactory<Credito, typeof Factura.prototype.id>;
 
   public readonly cliente: BelongsToAccessor<Cliente, typeof Factura.prototype.id>;
 
-  public readonly empleado: BelongsToAccessor<Empleado, typeof Factura.prototype.id>;
+  public readonly vendedor: BelongsToAccessor<Vendedor, typeof Factura.prototype.id>;
 
   constructor(
-    @inject('datasources.mysql') dataSource: MysqlDataSource, @repository.getter('MetodoPagoRepository') protected metodoPagoRepositoryGetter: Getter<MetodoPagoRepository>, @repository.getter('VentaRepository') protected ventaRepositoryGetter: Getter<VentaRepository>, @repository.getter('ZapatoRepository') protected zapatoRepositoryGetter: Getter<ZapatoRepository>, @repository.getter('CreditoRepository') protected creditoRepositoryGetter: Getter<CreditoRepository>, @repository.getter('ClienteRepository') protected clienteRepositoryGetter: Getter<ClienteRepository>, @repository.getter('EmpleadoRepository') protected empleadoRepositoryGetter: Getter<EmpleadoRepository>,
+    @inject('datasources.mysql') dataSource: MysqlDataSource, @repository.getter('MetodoPagoRepository') protected metodoPagoRepositoryGetter: Getter<MetodoPagoRepository>, @repository.getter('VentaRepository') protected ventaRepositoryGetter: Getter<VentaRepository>, @repository.getter('ZapatoRepository') protected zapatoRepositoryGetter: Getter<ZapatoRepository>, @repository.getter('CreditoRepository') protected creditoRepositoryGetter: Getter<CreditoRepository>, @repository.getter('ClienteRepository') protected clienteRepositoryGetter: Getter<ClienteRepository>, @repository.getter('VendedorRepository') protected vendedorRepositoryGetter: Getter<VendedorRepository>,
   ) {
     super(Factura, dataSource);
-    this.empleado = this.createBelongsToAccessorFor('empleado', empleadoRepositoryGetter,);
-    this.registerInclusionResolver('empleado', this.empleado.inclusionResolver);
+    this.vendedor = this.createBelongsToAccessorFor('vendedor', vendedorRepositoryGetter,);
+    this.registerInclusionResolver('vendedor', this.vendedor.inclusionResolver);
     this.cliente = this.createBelongsToAccessorFor('cliente', clienteRepositoryGetter,);
     this.registerInclusionResolver('cliente', this.cliente.inclusionResolver);
     this.creditos = this.createHasManyRepositoryFactoryFor('creditos', creditoRepositoryGetter,);

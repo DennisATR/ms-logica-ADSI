@@ -1,15 +1,15 @@
 import {belongsTo, Entity, model, property} from '@loopback/repository';
-import {Empleado} from './empleado.model';
+import {Usuario} from './usuario.model';
 
 @model(
   {
     settings: {
       foreignKeys: {
-        fk_login_idEmpleado: {
-          name: 'fk_login_idEmpleado',
-          entity: 'Empleado',
+        fk_login_idUsuario: {
+          name: 'fk_login_idUsuario',
+          entity: 'Usuario',
           entityKey: 'id',
-          foreignKey: 'empleadoId',
+          foreignKey: 'usuarioId',
         },
       },
     },
@@ -29,8 +29,8 @@ export class Login extends Entity {
   })
   Fecha: string;
 
-  @belongsTo(() => Empleado)
-  empleadoId: number;
+  @belongsTo(() => Usuario)
+  usuarioId: number;
 
   constructor(data?: Partial<Login>) {
     super(data);

@@ -16,7 +16,6 @@ import {Venta} from './venta.model';
       },
     },
   }
-
 )
 export class Zapato extends Entity {
   @property({
@@ -44,18 +43,6 @@ export class Zapato extends Entity {
   Talla: number;
 
   @property({
-    type: 'string',
-    required: true,
-  })
-  Color: string;
-
-  @property({
-    type: 'number',
-    required: true,
-  })
-  Ganancia: number;
-
-  @property({
     type: 'number',
     required: true,
   })
@@ -72,6 +59,12 @@ export class Zapato extends Entity {
     required: true,
   })
   PrecioVentaMin: number;
+
+  @property({
+    type: 'string',
+    required: false,
+  })
+  Color?: string;
 
   @property({
     type: 'number',

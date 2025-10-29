@@ -33,12 +33,6 @@ export class ZapatoUnidad extends Model {
   Color: string;
 
   @property({
-    type: 'number',
-    required: true,
-  })
-  Ganancia: number;
-
-  @property({
     type: 'string',
     required: true,
   })
@@ -69,7 +63,7 @@ export class ZapatoUnidad extends Model {
   Fecha: string;
 
   @property({
-    type:'number',
+    type: 'number',
     required: true,
   })
   proveedorId: number;

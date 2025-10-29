@@ -19,177 +19,177 @@ import {
   requestBody,
   response,
 } from '@loopback/rest';
-import {CambioClave, Credenciales, Empleado, Login} from '../models';
-import {EmpleadoRepository, LoginRepository} from '../repositories';
+import {CambioClave, Credenciales, Login, Usuario} from '../models';
+import {LoginRepository, UsuarioRepository} from '../repositories';
 import {SeguridadUsuarioService} from '../services';
 
-export class EmpleadoController {
+export class UsuarioController {
   constructor(
-    @repository(EmpleadoRepository)
-    public empleadoRepository: EmpleadoRepository,
+    @repository(UsuarioRepository)
+    public usuarioRepository: UsuarioRepository,
     @service(SeguridadUsuarioService)
     public seguridadUsuarioService: SeguridadUsuarioService,
     @repository(LoginRepository)
     public loginRepository: LoginRepository,
   ) { }
 
-  @post('/empleado')
+  @post('/usuario')
   @response(200, {
-    description: 'Empleado model instance',
-    content: {'application/json': {schema: getModelSchemaRef(Empleado)}},
+    description: 'Usuario model instance',
+    content: {'application/json': {schema: getModelSchemaRef(Usuario)}},
   })
   async create(
     @requestBody({
       content: {
         'application/json': {
-          schema: getModelSchemaRef(Empleado, {
-            title: 'NewEmpleado',
+          schema: getModelSchemaRef(Usuario, {
+            title: 'NewUsuario',
             exclude: ['id'],
           }),
         },
       },
     })
-    empleado: Omit<Empleado, 'id'>,
-  ): Promise<Empleado> {
-    empleado.FechaReg = new Date().toISOString();
-    // Verificar si ya existe un empleado con el mismo correo
-    const existente = await this.empleadoRepository.findOne({
-      where: {Correo: empleado.Correo},
+    usuario: Omit<Usuario, 'id'>,
+  ): Promise<Usuario> {
+    usuario.FechaReg = new Date().toISOString();
+    // Verificar si ya existe un usuario con el mismo correo
+    const existente = await this.usuarioRepository.findOne({
+      where: {Correo: usuario.Correo},
     });
 
     if (existente) {
-      throw new HttpErrors.UnprocessableEntity(`El correo '${empleado.Correo}' ya está en uso.`);
+      throw new HttpErrors.UnprocessableEntity(`El correo '${usuario.Correo}' ya está en uso.`);
     }
 
     // Cifrar la clave
     try {
-      empleado.Clave = this.seguridadUsuarioService.cifrarTexto(empleado.Clave);
+      usuario.Clave = this.seguridadUsuarioService.cifrarTexto(usuario.Clave);
     } catch (error) {
       throw new HttpErrors.InternalServerError('Error al cifrar la clave del usuario.');
     }
 
-    return this.empleadoRepository.create(empleado);
+    return this.usuarioRepository.create(usuario);
   }
 
-  @get('/empleado/count')
+  @get('/usuario/count')
   @response(200, {
-    description: 'Empleado model count',
+    description: 'Usuario model count',
     content: {'application/json': {schema: CountSchema}},
   })
   async count(
-    @param.where(Empleado) where?: Where<Empleado>,
+    @param.where(Usuario) where?: Where<Usuario>,
   ): Promise<Count> {
-    return this.empleadoRepository.count(where);
+    return this.usuarioRepository.count(where);
   }
 
-  @get('/empleado')
+  @get('/usuario')
   @response(200, {
-    description: 'Array of Empleado model instances',
+    description: 'Array of Usuario model instances',
     content: {
       'application/json': {
         schema: {
           type: 'array',
-          items: getModelSchemaRef(Empleado, {includeRelations: true}),
+          items: getModelSchemaRef(Usuario, {includeRelations: true}),
         },
       },
     },
   })
   async find(
-    @param.filter(Empleado) filter?: Filter<Empleado>,
-  ): Promise<Empleado[]> {
-    return this.empleadoRepository.find(filter);
+    @param.filter(Usuario) filter?: Filter<Usuario>,
+  ): Promise<Usuario[]> {
+    return this.usuarioRepository.find(filter);
   }
 
-  @patch('/empleado')
+  @patch('/usuario')
   @response(200, {
-    description: 'Empleado PATCH success count',
+    description: 'Usuario PATCH success count',
     content: {'application/json': {schema: CountSchema}},
   })
   async updateAll(
     @requestBody({
       content: {
         'application/json': {
-          schema: getModelSchemaRef(Empleado, {partial: true}),
+          schema: getModelSchemaRef(Usuario, {partial: true}),
         },
       },
     })
-    empleado: Empleado,
-    @param.where(Empleado) where?: Where<Empleado>,
+    usuario: Usuario,
+    @param.where(Usuario) where?: Where<Usuario>,
   ): Promise<Count> {
-    return this.empleadoRepository.updateAll(empleado, where);
+    return this.usuarioRepository.updateAll(usuario, where);
   }
 
-  @get('/empleado/{id}')
+  @get('/usuario/{id}')
   @response(200, {
-    description: 'Empleado model instance',
+    description: 'Usuario model instance',
     content: {
       'application/json': {
-        schema: getModelSchemaRef(Empleado, {includeRelations: true}),
+        schema: getModelSchemaRef(Usuario, {includeRelations: true}),
       },
     },
   })
   async findById(
     @param.path.number('id') id: number,
-    @param.filter(Empleado, {exclude: 'where'}) filter?: FilterExcludingWhere<Empleado>
-  ): Promise<Empleado> {
-    return this.empleadoRepository.findById(id, filter);
+    @param.filter(Usuario, {exclude: 'where'}) filter?: FilterExcludingWhere<Usuario>
+  ): Promise<Usuario> {
+    return this.usuarioRepository.findById(id, filter);
   }
 
-  @patch('/empleado/{id}')
+  @patch('/usuario/{id}')
   @response(204, {
-    description: 'Empleado PATCH success',
+    description: 'Usuario PATCH success',
   })
   async updateById(
     @param.path.number('id') id: number,
     @requestBody({
       content: {
         'application/json': {
-          schema: getModelSchemaRef(Empleado, {partial: true}),
+          schema: getModelSchemaRef(Usuario, {partial: true}),
         },
       },
     })
-    empleado: Empleado,
+    usuario: Usuario,
   ): Promise<void> {
-    await this.empleadoRepository.updateById(id, empleado);
+    await this.usuarioRepository.updateById(id, usuario);
   }
 
-  @put('/empleado/{id}')
+  @put('/usuario/{id}')
   @response(204, {
-    description: 'Empleado PUT success',
+    description: 'Usuario PUT success',
   })
   async replaceById(
     @param.path.number('id') id: number,
-    @requestBody() empleado: Empleado,
+    @requestBody() usuario: Usuario,
   ): Promise<void> {
-    empleado.FechaReg = new Date().toISOString();
+    usuario.FechaReg = new Date().toISOString();
 
-    if (empleado.Clave) {
-      empleado.Clave = this.seguridadUsuarioService.cifrarTexto(empleado.Clave);
+    if (usuario.Clave) {
+      usuario.Clave = this.seguridadUsuarioService.cifrarTexto(usuario.Clave);
     }
 
-    if (empleado.Correo) {
-      let usuarioExistenteCorreo = await this.empleadoRepository.findOne({
-        where: {Correo: empleado.Correo, id: {neq: id}},
+    if (usuario.Correo) {
+      let usuarioExistenteCorreo = await this.usuarioRepository.findOne({
+        where: {Correo: usuario.Correo, id: {neq: id}},
       });
       if (usuarioExistenteCorreo) {
-        throw new HttpErrors.BadRequest(`El correo '${empleado.Correo}' ya se encuentra en uso por otro usuario.`);
+        throw new HttpErrors.BadRequest(`El correo '${usuario.Correo}' ya se encuentra en uso por otro usuario.`);
       }
     }
-    await this.empleadoRepository.replaceById(id, empleado);
+    await this.usuarioRepository.replaceById(id, usuario);
   }
 
-  @del('/empleado/{id}')
+  @del('/usuario/{id}')
   @response(204, {
-    description: 'Empleado DELETE success',
+    description: 'Usuario DELETE success',
   })
   async deleteById(@param.path.number('id') id: number): Promise<void> {
-    await this.empleadoRepository.deleteById(id);
+    await this.usuarioRepository.deleteById(id);
   }
 
   @post('/identificar-usuario')
   @response(200, {
     description: 'Identificar un usuario por correo y clave',
-    content: {'application/json': {schema: getModelSchemaRef(Empleado)}},
+    content: {'application/json': {schema: getModelSchemaRef(Usuario)}},
   })
   async identificarUsuario(
     @requestBody({
@@ -204,7 +204,7 @@ export class EmpleadoController {
     let user = await this.seguridadUsuarioService.identificarUsuario(credentials);
     if (user) {
       let login: Login = new Login();
-      login.empleadoId = user.id!; // Este dato _id si o si va a llegar
+      login.usuarioId = user.id!; // Este dato _id si o si va a llegar
       login.Fecha = new Date().toString();
       this.loginRepository.create(login);
       return user;
@@ -219,7 +219,7 @@ usuario, su contraseña actual y la contraseña nueva. */
   @patch('/cambiar-clave')
   @response(200, {
     description: 'Usuario model instance',
-    content: {'application/json': {schema: getModelSchemaRef(Empleado)}},
+    content: {'application/json': {schema: getModelSchemaRef(Usuario)}},
   })
   async cambiarClave(
     @requestBody({
@@ -240,7 +240,7 @@ usuario, su contraseña actual y la contraseña nueva. */
     credenciales.clave = this.seguridadUsuarioService.cifrarTexto(credenciales.clave);
 
     // Buscar al usuario que corresponda con las credenciales ingresadas.
-    const empleado = await this.empleadoRepository.findOne({
+    const usuario = await this.usuarioRepository.findOne({
       where: {
         Correo: credenciales.correo,
         Clave: credenciales.clave,
@@ -248,7 +248,7 @@ usuario, su contraseña actual y la contraseña nueva. */
     });
 
     // Verificar si el usuario existe.
-    if (!empleado) {
+    if (!usuario) {
       throw new HttpErrors.NotFound('Usuario no encontrado');
     }
 
@@ -264,8 +264,9 @@ usuario, su contraseña actual y la contraseña nueva. */
     // Asignar la contraseña nueva y actualizar el usuario.
     let nuevaClave = cambioClave.claveNueva;
     let nuevaClaveCifrada = this.seguridadUsuarioService.cifrarTexto(nuevaClave);
-    empleado.Clave = nuevaClaveCifrada;
-    await this.empleadoRepository.updateById(empleado.getId(), empleado);
-    return empleado;
+    usuario.Clave = nuevaClaveCifrada;
+    await this.usuarioRepository.updateById(usuario.getId(), usuario);
+    return usuario;
   }
 }
+

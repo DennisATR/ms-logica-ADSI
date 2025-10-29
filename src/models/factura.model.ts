@@ -1,8 +1,8 @@
 import {belongsTo, Entity, hasMany, model, property} from '@loopback/repository';
 import {Cliente} from './cliente.model';
 import {Credito} from './credito.model';
-import {Empleado} from './empleado.model';
 import {MetodoPago} from './metodo-pago.model';
+import {Vendedor} from './vendedor.model';
 import {Venta} from './venta.model';
 import {Zapato} from './zapato.model';
 
@@ -22,11 +22,11 @@ import {Zapato} from './zapato.model';
           entityKey: 'id',
           foreignKey: 'metodoPagoId',
         },
-        fk_factura_idEmpleado: {
-          name: 'fk_factura_idEmpleado',
-          entity: 'Empleado',
+        fk_factura_idVendedor: {
+          name: 'fk_factura_idVendedor',
+          entity: 'Vendedor',
           entityKey: 'id',
-          foreignKey: 'empleadoId',
+          foreignKey: 'vendedorId',
         },
       },
     },
@@ -76,8 +76,8 @@ export class Factura extends Entity {
   @belongsTo(() => Cliente)
   clienteId: number;
 
-  @belongsTo(() => Empleado)
-  empleadoId: number;
+  @belongsTo(() => Vendedor)
+  vendedorId: string;
 
   constructor(data?: Partial<Factura>) {
     super(data);

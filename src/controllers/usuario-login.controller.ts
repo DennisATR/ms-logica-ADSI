@@ -16,20 +16,20 @@ import {
   requestBody,
 } from '@loopback/rest';
 import {
-  Empleado,
+  Usuario,
   Login,
 } from '../models';
-import {EmpleadoRepository} from '../repositories';
+import {UsuarioRepository} from '../repositories';
 
-export class EmpleadoLoginController {
+export class UsuarioLoginController {
   constructor(
-    @repository(EmpleadoRepository) protected empleadoRepository: EmpleadoRepository,
+    @repository(UsuarioRepository) protected usuarioRepository: UsuarioRepository,
   ) { }
 
-  @get('/empleados/{id}/logins', {
+  @get('/usuarios/{id}/logins', {
     responses: {
       '200': {
-        description: 'Array of Empleado has many Login',
+        description: 'Array of Usuario has many Login',
         content: {
           'application/json': {
             schema: {type: 'array', items: getModelSchemaRef(Login)},
@@ -42,38 +42,38 @@ export class EmpleadoLoginController {
     @param.path.number('id') id: number,
     @param.query.object('filter') filter?: Filter<Login>,
   ): Promise<Login[]> {
-    return this.empleadoRepository.logins(id).find(filter);
+    return this.usuarioRepository.logins(id).find(filter);
   }
 
-  @post('/empleados/{id}/logins', {
+  @post('/usuarios/{id}/logins', {
     responses: {
       '200': {
-        description: 'Empleado model instance',
+        description: 'Usuario model instance',
         content: {'application/json': {schema: getModelSchemaRef(Login)}},
       },
     },
   })
   async create(
-    @param.path.number('id') id: typeof Empleado.prototype.id,
+    @param.path.number('id') id: typeof Usuario.prototype.id,
     @requestBody({
       content: {
         'application/json': {
           schema: getModelSchemaRef(Login, {
-            title: 'NewLoginInEmpleado',
+            title: 'NewLoginInUsuario',
             exclude: ['id'],
-            optional: ['empleadoId']
+            optional: ['usuarioId']
           }),
         },
       },
     }) login: Omit<Login, 'id'>,
   ): Promise<Login> {
-    return this.empleadoRepository.logins(id).create(login);
+    return this.usuarioRepository.logins(id).create(login);
   }
 
-  @patch('/empleados/{id}/logins', {
+  @patch('/usuarios/{id}/logins', {
     responses: {
       '200': {
-        description: 'Empleado.Login PATCH success count',
+        description: 'Usuario.Login PATCH success count',
         content: {'application/json': {schema: CountSchema}},
       },
     },
@@ -90,13 +90,13 @@ export class EmpleadoLoginController {
     login: Partial<Login>,
     @param.query.object('where', getWhereSchemaFor(Login)) where?: Where<Login>,
   ): Promise<Count> {
-    return this.empleadoRepository.logins(id).patch(login, where);
+    return this.usuarioRepository.logins(id).patch(login, where);
   }
 
-  @del('/empleados/{id}/logins', {
+  @del('/usuarios/{id}/logins', {
     responses: {
       '200': {
-        description: 'Empleado.Login DELETE success count',
+        description: 'Usuario.Login DELETE success count',
         content: {'application/json': {schema: CountSchema}},
       },
     },
@@ -105,6 +105,6 @@ export class EmpleadoLoginController {
     @param.path.number('id') id: number,
     @param.query.object('where', getWhereSchemaFor(Login)) where?: Where<Login>,
   ): Promise<Count> {
-    return this.empleadoRepository.logins(id).delete(where);
+    return this.usuarioRepository.logins(id).delete(where);
   }
 }

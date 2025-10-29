@@ -7,21 +7,21 @@ import {
   getModelSchemaRef,
 } from '@loopback/rest';
 import {
-  Empleado,
+  Usuario,
   Rol,
 } from '../models';
-import {EmpleadoRepository} from '../repositories';
+import {UsuarioRepository} from '../repositories';
 
-export class EmpleadoRolController {
+export class UsuarioRolController {
   constructor(
-    @repository(EmpleadoRepository)
-    public empleadoRepository: EmpleadoRepository,
+    @repository(UsuarioRepository)
+    public usuarioRepository: UsuarioRepository,
   ) { }
 
-  @get('/empleados/{id}/rol', {
+  @get('/usuarios/{id}/rol', {
     responses: {
       '200': {
-        description: 'Rol belonging to Empleado',
+        description: 'Rol belonging to Usuario',
         content: {
           'application/json': {
             schema: getModelSchemaRef(Rol),
@@ -31,8 +31,8 @@ export class EmpleadoRolController {
     },
   })
   async getRol(
-    @param.path.number('id') id: typeof Empleado.prototype.id,
+    @param.path.number('id') id: typeof Usuario.prototype.id,
   ): Promise<Rol> {
-    return this.empleadoRepository.rol(id);
+    return this.usuarioRepository.rol(id);
   }
 }

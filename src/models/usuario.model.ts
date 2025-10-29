@@ -1,15 +1,13 @@
 import {belongsTo, Entity, hasMany, model, property} from '@loopback/repository';
-import {Factura} from './factura.model';
 import {Login} from './login.model';
-import {Pago} from './pago.model';
 import {Rol} from './rol.model';
 
 @model(
   {
     settings: {
       foreignKeys: {
-        fk_empleado_rolId: {
-          name: 'fk_empleado_rolId',
+        fk_usuario_rolId: {
+          name: 'fk_usuario_rolId',
           entity: 'Rol',
           entityKey: 'id',
           foreignKey: 'rolId',
@@ -18,7 +16,7 @@ import {Rol} from './rol.model';
     },
   },
 )
-export class Empleado extends Entity {
+export class Usuario extends Entity {
   @property({
     type: 'number',
     id: true,
@@ -36,19 +34,19 @@ export class Empleado extends Entity {
     type: 'string',
     required: true,
   })
-  Telefono: string;
-
-  @property({
-    type: 'date',
-    required: true,
-  })
-  FechaReg: string;
+  Apellido: string;
 
   @property({
     type: 'string',
     required: true,
   })
-  Apellido: string;
+  Telefono: string;
+
+  @property({
+    type: 'string',
+    required: true,
+  })
+  Correo: string;
 
   @property({
     type: 'string',
@@ -57,30 +55,24 @@ export class Empleado extends Entity {
   Clave: string;
 
   @property({
-    type: 'string',
+    type: 'date',
+    required: true,
   })
-  Correo?: string;
-
-
-  @hasMany(() => Pago)
-  pagos: Pago[];
-
-  @hasMany(() => Factura)
-  facturas: Factura[];
-
-  @belongsTo(() => Rol)
-  rolId: number;
+  FechaReg: string;
 
   @hasMany(() => Login)
   logins: Login[];
 
-  constructor(data?: Partial<Empleado>) {
+  @belongsTo(() => Rol)
+  rolId: number;
+
+  constructor(data?: Partial<Usuario>) {
     super(data);
   }
 }
 
-export interface EmpleadoRelations {
+export interface UsuarioRelations {
   // describe navigational properties here
 }
 
-export type EmpleadoWithRelations = Empleado & EmpleadoRelations;
+export type UsuarioWithRelations = Usuario & UsuarioRelations;
