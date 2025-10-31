@@ -7,13 +7,13 @@ import {
   Where,
 } from '@loopback/repository';
 import {
-  post,
-  param,
+  del,
   get,
   getModelSchemaRef,
+  param,
   patch,
+  post,
   put,
-  del,
   requestBody,
   response,
 } from '@loopback/rest';
@@ -23,8 +23,8 @@ import {VendedorRepository} from '../repositories';
 export class VendedorController {
   constructor(
     @repository(VendedorRepository)
-    public vendedorRepository : VendedorRepository,
-  ) {}
+    public vendedorRepository: VendedorRepository,
+  ) { }
 
   @post('/vendedor')
   @response(200, {
@@ -37,14 +37,43 @@ export class VendedorController {
         'application/json': {
           schema: getModelSchemaRef(Vendedor, {
             title: 'NewVendedor',
-            
+            exclude: ['id', 'FechaReg'],
           }),
         },
       },
     })
-    vendedor: Vendedor,
+    vendedor: Omit<Vendedor, 'id'>,
   ): Promise<Vendedor> {
-    return this.vendedorRepository.create(vendedor);
+    const fechaRegistro = new Date();
+
+    const nuevoVendedor = {
+      ...vendedor,
+      id: await this.generarIdVendedor(fechaRegistro),
+      FechaReg: fechaRegistro.toISOString()
+    };
+
+    return this.vendedorRepository.create(nuevoVendedor);
+  }
+
+  private async generarIdVendedor(fecha: Date): Promise<string> {
+    const año = fecha.getFullYear().toString();
+    const dia = fecha.getDate().toString().padStart(2, '0');
+    const mes = (fecha.getMonth() + 1).toString().padStart(2, '0');
+    const prefijo = año + dia + mes;
+    const ultimoVendedor = await this.vendedorRepository.findOne({
+      where: {
+        id: {like: `${prefijo}%`}
+      },
+      order: ['id DESC']
+    });
+
+    let secuencial = 1;
+    if (ultimoVendedor && ultimoVendedor.id) {
+      const ultimoSecuencial = parseInt(ultimoVendedor.id.slice(-2));
+      secuencial = ultimoSecuencial + 1;
+    }
+    const secuencialStr = secuencial.toString().padStart(2, '0');
+    return prefijo + secuencialStr;
   }
 
   @get('/vendedor/count')
@@ -137,6 +166,7 @@ export class VendedorController {
     @param.path.string('id') id: string,
     @requestBody() vendedor: Vendedor,
   ): Promise<void> {
+    vendedor.FechaReg = new Date().toISOString();
     await this.vendedorRepository.replaceById(id, vendedor);
   }
 
