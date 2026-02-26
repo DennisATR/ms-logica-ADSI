@@ -8,6 +8,7 @@ import {Zapato} from './zapato.model';
 
 @model(
   {
+    /**
     settings: {
       foreignKeys: {
         fk_factura_idCliente: {
@@ -30,6 +31,7 @@ import {Zapato} from './zapato.model';
         },
       },
     },
+      */
   },
 
 )
@@ -78,6 +80,9 @@ export class Factura extends Entity {
 
   @belongsTo(() => Vendedor)
   vendedorId: string;
+
+  @hasMany(() => Venta)
+  ventas: Venta[];
 
   constructor(data?: Partial<Factura>) {
     super(data);

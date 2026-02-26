@@ -18,13 +18,15 @@ import {
   response,
 } from '@loopback/rest';
 import {Infolocal} from '../models';
-import {InfolocalRepository} from '../repositories';
+import {AlmacenRepository, InfolocalRepository} from '../repositories';
 
 export class InfolocalController {
   constructor(
+    @repository(AlmacenRepository)
+    public almacenRepository: AlmacenRepository,
     @repository(InfolocalRepository)
-    public infolocalRepository : InfolocalRepository,
-  ) {}
+    public infolocalRepository: InfolocalRepository,
+  ) { }
 
   @post('/infolocal')
   @response(200, {
@@ -44,9 +46,20 @@ export class InfolocalController {
     })
     infolocal: Omit<Infolocal, 'id'>,
   ): Promise<Infolocal> {
-      // Eliminar el registro anterior
-    await this.infolocalRepository.deleteAll(); // Esto eliminará todos los registros
-    return this.infolocalRepository.create(infolocal);
+    // Eliminar el registro anterior
+    await this.infolocalRepository.deleteAll();
+    const infoCreada = await this.infolocalRepository.create(infolocal);
+
+    const almacenes = await this.almacenRepository.find({limit: 1});
+
+    if (almacenes.length === 0) {
+      await this.almacenRepository.create({
+        Nombre: infolocal.Nombre,
+        Prefijo: infolocal.Nombre.substring(0, 3).toUpperCase(),
+      });
+    }
+
+    return infoCreada;
   }
 
   @get('/infolocal/count')

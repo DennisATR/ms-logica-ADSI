@@ -5,6 +5,7 @@ import {Venta} from './venta.model';
 
 @model(
   {
+    /**
     settings: {
       foreignKeys: {
         fk_zapato_proveedorId: {
@@ -15,6 +16,7 @@ import {Venta} from './venta.model';
         },
       },
     },
+      */
   }
 )
 export class Zapato extends Entity {
@@ -83,6 +85,9 @@ export class Zapato extends Entity {
 
   @belongsTo(() => Proveedor)
   proveedorId: number;
+
+  @hasMany(() => Venta)
+  ventas: Venta[];
 
   constructor(data?: Partial<Zapato>) {
     super(data);

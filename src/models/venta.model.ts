@@ -1,9 +1,13 @@
-import {Entity, hasMany, model, property} from '@loopback/repository';
+import {belongsTo, Entity, hasMany, model, property} from '@loopback/repository';
+import {Almacen} from './almacen.model';
 import {Devolucion} from './devolucion.model';
+import {Factura} from './factura.model';
 import {Pendiente} from './pendiente.model';
+import {Zapato} from './zapato.model';
 
 @model(
   {
+    /**
     settings: {
       foreignKeys: {
         fk_venta_facturaId: {
@@ -20,6 +24,7 @@ import {Pendiente} from './pendiente.model';
         },
       },
     },
+      */
   },
 
 )
@@ -43,21 +48,14 @@ export class Venta extends Entity {
   })
   Precio: number;
 
-  @property({
-    type: 'string',
-    required: true,
-  })
-  Almacen: string;
+  @belongsTo(() => Almacen)
+  almacenId: number;
 
-  @property({
-    type: 'number',
-  })
-  facturaId?: number;
+  @belongsTo(() => Zapato)
+  zapatoId: string;
 
-  @property({
-    type: 'string',
-  })
-  zapatoId?: string;
+  @belongsTo(() => Factura)
+  facturaId: number;
 
   @hasMany(() => Devolucion)
   devolucions: Devolucion[];

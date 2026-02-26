@@ -21,3 +21,4 @@ export * from './vendedor.repository';
 export * from './venta.repository';
 export * from './zapato.repository';
 
+export * from './almacen.repository';

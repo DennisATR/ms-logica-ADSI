@@ -23,68 +23,52 @@ import {FacturaRepository, InfolocalRepository, VentaRepository, ZapatoRepositor
 export class VentaController {
   constructor(
     @repository(VentaRepository)
-    public ventaRepository : VentaRepository,
+    public ventaRepository: VentaRepository,
     @repository(ZapatoRepository)
-    public zapatoRepository : ZapatoRepository,
+    public zapatoRepository: ZapatoRepository,
     @repository(InfolocalRepository)
-    public infolocalRepository : InfolocalRepository,
+    public infolocalRepository: InfolocalRepository,
     @repository(FacturaRepository)
-    public facturaRepository : FacturaRepository,
-  ) {}
+    public facturaRepository: FacturaRepository,
+  ) { }
 
   @post('/venta')
-@response(200, {
-  description: 'Venta model instance',
-  content: {'application/json': {schema: getModelSchemaRef(Venta)}},
-})
-async create(
-  @requestBody({
-    content: {
-      'application/json': {
-        schema: getModelSchemaRef(Venta, {
-          title: 'NewVenta',
-          exclude: ['id'],
-        }),
-      },
-    },
+  @response(200, {
+    description: 'Venta model instance',
+    content: {'application/json': {schema: getModelSchemaRef(Venta)}},
   })
-  venta: Omit<Venta, 'id'>,
-): Promise<Venta> {
-  // Obtener el zapato correspondiente
-  const zapato = await this.zapatoRepository.findById(venta.zapatoId);
+  async create(
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: getModelSchemaRef(Venta, {
+            title: 'NewVenta',
+            exclude: ['id'],
+          }),
+        },
+      },
+    })
+    venta: Omit<Venta, 'id'>,
+  ): Promise<Venta> {
+    // Obtener el zapato correspondiente
+    const zapato = await this.zapatoRepository.findById(venta.zapatoId);
 
-  // Obtener el último registro de Infolocal
-  const [latestInfolocal] = await this.infolocalRepository.find({
-    order: ['id DESC'],
-    limit: 1,
-  });
+    // Obtener el último registro de Infolocal
+    const [latestInfolocal] = await this.infolocalRepository.find({
+      order: ['id DESC'],
+      limit: 1,
+    });
 
-  if (!latestInfolocal) {
-    throw new Error('No se encontró un registro válido en Infolocal');
-  }
-
-  // Verificar si el almacén del zapato coincide con el último registro de Infolocal
-  if (venta.Almacen === latestInfolocal.Nombre) {
-    // Si el zapato pertenece al almacén, verificar stock y reducirlo
-    if (zapato.Cantidad < venta.Cantidad) {
-      throw new Error('No hay suficiente stock para completar la venta');
+    if (!latestInfolocal) {
+      throw new Error('No se encontró un registro válido en Infolocal');
     }
 
-    zapato.Cantidad -= venta.Cantidad;
-    await this.zapatoRepository.updateById(zapato.id, zapato);
-  } else {
-    // Si el zapato no pertenece al almacén, permitir la venta pero no modificar el stock
-    console.warn(
-      `La venta fue realizada, pero el zapato no pertenece al almacén: ${latestInfolocal.Nombre}. El stock no será reducido.`
-    );
+    // Actualizar el total de la factura
+    const factura = await this.facturaRepository.findById(venta.facturaId);
+    factura.Total += venta.Cantidad * venta.Precio;
+    // Crear la venta
+    return this.ventaRepository.create(venta);
   }
-
-  // Actualizar el total de la factura
-  const factura = await this.facturaRepository.findById(venta.facturaId);
-  factura.Total += venta.Cantidad * venta.Precio;
-  // Crear la venta
-  return this.ventaRepository.create(venta);
-}
 
   @get('/venta/count')
   @response(200, {

@@ -3,7 +3,7 @@ import {Login} from './login.model';
 import {Rol} from './rol.model';
 
 @model(
-  {
+  { /**
     settings: {
       foreignKeys: {
         fk_usuario_rolId: {
@@ -14,6 +14,7 @@ import {Rol} from './rol.model';
         },
       },
     },
+        */
   },
 )
 export class Usuario extends Entity {

@@ -2,7 +2,7 @@ import {belongsTo, Entity, model, property} from '@loopback/repository';
 import {Factura} from './factura.model';
 
 @model(
-  {
+  { /**
     settings: {
       foreignKeys: {
         fk_credito_idFactura: {
@@ -14,6 +14,7 @@ import {Factura} from './factura.model';
       },
     },
   }
+    */},
 )
 export class Credito extends Entity {
   @property({

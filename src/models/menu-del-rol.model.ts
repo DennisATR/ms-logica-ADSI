@@ -2,6 +2,7 @@ import {Entity, model, property} from '@loopback/repository';
 
 @model(
   {
+    /**
     settings: {
       foreignKeys: {
         fk_menuId_Menudelrol: {
@@ -18,6 +19,7 @@ import {Entity, model, property} from '@loopback/repository';
         },
       },
     },
+      */
   }
 )
 export class MenuDelRol extends Entity {

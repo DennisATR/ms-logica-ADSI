@@ -3,6 +3,7 @@ import {Usuario} from './usuario.model';
 
 @model(
   {
+    /**
     settings: {
       foreignKeys: {
         fk_login_idUsuario: {
@@ -13,6 +14,7 @@ import {Usuario} from './usuario.model';
         },
       },
     },
+      */
   },
 )
 export class Login extends Entity {

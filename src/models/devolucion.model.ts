@@ -4,6 +4,7 @@ import {Venta} from './venta.model';
 @model(
 
   {
+    /**
     settings: {
       foreignKeys: {
         fk_venta_id: {
@@ -14,6 +15,7 @@ import {Venta} from './venta.model';
         },
       },
     },
+      */
   },
 
 )

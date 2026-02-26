@@ -3,6 +3,7 @@ import {Vendedor} from './vendedor.model';
 
 @model(
   {
+    /**
     settings: {
       foreignKeys: {
         fk_pago_idVendedor: {
@@ -14,6 +15,7 @@ import {Vendedor} from './vendedor.model';
       },
     },
   },
+      */}
 
 )
 export class Pago extends Entity {

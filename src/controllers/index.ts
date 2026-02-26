@@ -48,3 +48,10 @@ export * from './zapato-factura.controller';
 export * from './zapato-proveedor.controller';
 export * from './zapato.controller';
 
+export * from './almacen.controller';
+export * from './venta-almacen.controller';
+export * from './almacen-venta.controller';
+export * from './venta-zapato.controller';
+export * from './zapato-venta.controller';
+export * from './venta-factura.controller';
+export * from './factura-venta.controller';
