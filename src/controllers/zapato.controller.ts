@@ -20,7 +20,7 @@ import {
   response,
 } from '@loopback/rest';
 import {Zapato, ZapatoSerie, ZapatoUnidad} from '../models';
-import {ZapatoRepository} from '../repositories';
+import {AlmacenRepository, ZapatoRepository} from '../repositories';
 import {StickerService} from '../services';
 
 export class ZapatoController {
@@ -28,7 +28,9 @@ export class ZapatoController {
     @repository(ZapatoRepository)
     public zapatoRepository: ZapatoRepository,
     @service(StickerService)
-    public stickerService: StickerService
+    public stickerService: StickerService,
+    @repository(AlmacenRepository)
+    public almacenRepository: AlmacenRepository,
   ) { }
 
   @post('/zapato')
@@ -48,6 +50,13 @@ export class ZapatoController {
     })
     data: ZapatoUnidad,
   ): Promise<Zapato> {
+    // Obtener el prefijo del almacén para generar el ID del zapato
+    const almacenes = await this.almacenRepository.find({limit: 1});
+    if (almacenes.length === 0) {
+      throw new HttpErrors.BadRequest('No hay almacenes disponibles para generar el ID del zapato.');
+    }
+    const prefijoAlmacen = almacenes[0].Prefijo
+
     // Extraer la descripción y categoría para generar el prefijo
     const {Descripcion, Categoria, Talla, id, Referencia, PrecioVentaMax, PrecioVentaMin, ...commonData} = data;
 
@@ -88,7 +97,7 @@ export class ZapatoController {
       const consecutivo = await this.obtenerConsecutivo(prefijoDescripcion, prefijoCategoria);
 
       // Generar el ID para el zapato individual
-      const generatedId = `${prefijoDescripcion}${prefijoCategoria}${consecutivo}${Talla}`;
+      const generatedId = `${prefijoAlmacen}${prefijoDescripcion}${prefijoCategoria}${consecutivo}${Talla}`;
 
       zapatoConId = {
         id: generatedId,
@@ -98,8 +107,7 @@ export class ZapatoController {
         PrecioCosto: precioDecodificado,
         PrecioVentaMax: PrecioVentaMax,
         PrecioVentaMin: PrecioVentaMin,
-        ...
-        commonData,
+        ...commonData,
       };
     }
     // Crear el zapato con el ID generado o proporcionado

@@ -53,6 +53,10 @@ export class VentaController {
     // Obtener el zapato correspondiente
     const zapato = await this.zapatoRepository.findById(venta.zapatoId);
 
+    // Restar la cantidad vendida del stock del zapato
+    zapato.Cantidad -= venta.Cantidad;
+    await this.zapatoRepository.updateById(zapato.id, zapato);
+
     // Obtener el último registro de Infolocal
     const [latestInfolocal] = await this.infolocalRepository.find({
       order: ['id DESC'],
@@ -66,6 +70,7 @@ export class VentaController {
     // Actualizar el total de la factura
     const factura = await this.facturaRepository.findById(venta.facturaId);
     factura.Total += venta.Cantidad * venta.Precio;
+    await this.facturaRepository.updateById(factura.id, factura);
     // Crear la venta
     return this.ventaRepository.create(venta);
   }

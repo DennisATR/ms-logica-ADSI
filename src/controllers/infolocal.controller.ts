@@ -18,6 +18,7 @@ import {
   response,
 } from '@loopback/rest';
 import {Infolocal} from '../models';
+import {Informacion} from '../models/informacion.model';
 import {AlmacenRepository, InfolocalRepository} from '../repositories';
 
 export class InfolocalController {
@@ -30,36 +31,35 @@ export class InfolocalController {
 
   @post('/infolocal')
   @response(200, {
-    description: 'Infolocal model instance',
-    content: {'application/json': {schema: getModelSchemaRef(Infolocal)}},
+    description: 'Infolocal + Almacen creados',
   })
   async create(
     @requestBody({
       content: {
         'application/json': {
-          schema: getModelSchemaRef(Infolocal, {
-            title: 'NewInfolocal',
+          schema: getModelSchemaRef(Informacion, {
+            title: 'InformacionInput',
             exclude: ['id'],
           }),
         },
       },
     })
-    infolocal: Omit<Infolocal, 'id'>,
+    info: Omit<Informacion, 'id'>,
   ): Promise<Infolocal> {
-    // Eliminar el registro anterior
-    await this.infolocalRepository.deleteAll();
-    const infoCreada = await this.infolocalRepository.create(infolocal);
-
-    const almacenes = await this.almacenRepository.find({limit: 1});
-
-    if (almacenes.length === 0) {
-      await this.almacenRepository.create({
-        Nombre: infolocal.Nombre,
-        Prefijo: infolocal.Nombre.substring(0, 3).toUpperCase(),
-      });
-    }
-
-    return infoCreada;
+    const almacen = await this.almacenRepository.create({
+      Nombre: info.Nombre,
+      Prefijo: info.Prefijo,
+    });
+    const infolocal = await this.infolocalRepository.create({
+      Nombre: info.Nombre,
+      Direccion: info.Direccion,
+      NIT: info.NIT,
+      Iva: info.Iva,
+      Mensaje: info.Mensaje,
+      Telefono: info.Telefono,
+      almacenId: almacen.id,
+    });
+    return infolocal;
   }
 
   @get('/infolocal/count')
@@ -146,13 +146,35 @@ export class InfolocalController {
 
   @put('/infolocal/{id}')
   @response(204, {
-    description: 'Infolocal PUT success',
+    description: 'Infolocal + Almacen updated successfully',
   })
   async replaceById(
     @param.path.number('id') id: number,
-    @requestBody() infolocal: Infolocal,
+    @requestBody({
+      content: {
+        'application/json': {
+          schema: getModelSchemaRef(Informacion, {
+            title: 'UpdateInformacion',
+            exclude: ['id'],
+          }),
+        },
+      },
+    })
+    info: Omit<Informacion, 'id'>,
   ): Promise<void> {
-    await this.infolocalRepository.replaceById(id, infolocal);
+    const infolocalActual = await this.infolocalRepository.findById(id);
+    await this.almacenRepository.updateById(infolocalActual.almacenId, {
+      Nombre: info.Nombre,
+      Prefijo: info.Prefijo,
+    });
+    await this.infolocalRepository.updateById(id, {
+      Nombre: info.Nombre,
+      Direccion: info.Direccion,
+      NIT: info.NIT,
+      Iva: info.Iva,
+      Mensaje: info.Mensaje,
+      Telefono: info.Telefono,
+    });
   }
 
   @del('/infolocal/{id}')

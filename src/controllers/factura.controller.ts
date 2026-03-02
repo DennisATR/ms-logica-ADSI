@@ -25,10 +25,10 @@ import {ImpresoraService} from '../services';
 export class FacturaController {
   constructor(
     @repository(FacturaRepository)
-    public facturaRepository : FacturaRepository,
+    public facturaRepository: FacturaRepository,
     @service(ImpresoraService)
     public impresoraService: ImpresoraService,
-  ) {}
+  ) { }
 
   @post('/factura')
   @response(200, {
@@ -49,8 +49,10 @@ export class FacturaController {
     factura: Omit<Factura, 'id'>,
   ): Promise<Factura> {
     const nuevaFactura = await this.facturaRepository.create(factura);
-    await this.impresoraService.imprimirFactura(nuevaFactura);
-    return this.facturaRepository.create(factura);
+    this.impresoraService.printFactura(nuevaFactura).catch(err => {
+      console.error('Error al imprimir factura:', err);
+    });
+    return nuevaFactura;
   }
 
   @get('/factura/count')

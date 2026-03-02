@@ -42,6 +42,11 @@ export class Infolocal extends Entity {
   })
   Telefono?: string;
 
+  @property({
+    type: 'number',
+    required: true,
+  })
+  almacenId?: number;
 
   constructor(data?: Partial<Infolocal>) {
     super(data);
