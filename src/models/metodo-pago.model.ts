@@ -1,5 +1,6 @@
 import {Entity, model, property, hasMany} from '@loopback/repository';
 import {Factura} from './factura.model';
+import {CierreCajaMetodoPago} from './cierre-caja-metodo-pago.model';
 
 @model()
 export class MetodoPago extends Entity {
@@ -24,6 +25,9 @@ export class MetodoPago extends Entity {
 
   @hasMany(() => Factura)
   facturas: Factura[];
+
+  @hasMany(() => CierreCajaMetodoPago)
+  cierreCajaMetodoPagos: CierreCajaMetodoPago[];
 
   constructor(data?: Partial<MetodoPago>) {
     super(data);

@@ -1,3 +1,4 @@
+export * from './cierre-caja.controller';
 export * from './cliente-factura.controller';
 export * from './cliente.controller';
 export * from './credito-factura.controller';
@@ -31,7 +32,6 @@ export * from './ping.controller';
 export * from './proveedor-cuenta.controller';
 export * from './proveedor-zapato.controller';
 export * from './proveedor.controller';
-export * from './reportes.controller';
 export * from './rol-menu.controller';
 export * from './rol-usuario.controller';
 export * from './rol.controller';
@@ -48,10 +48,16 @@ export * from './zapato-factura.controller';
 export * from './zapato-proveedor.controller';
 export * from './zapato.controller';
 
-export * from './almacen.controller';
-export * from './venta-almacen.controller';
 export * from './almacen-venta.controller';
+export * from './almacen.controller';
+export * from './cierre-caja-cierre-caja-metodo-pago.controller';
+export * from './cierre-caja-metodo-pago-cierre-caja.controller';
+export * from './cierre-caja-metodo-pago-metodo-pago.controller';
+export * from './cierre-caja-metodo-pago.controller';
+export * from './factura-venta.controller';
+export * from './metodo-pago-cierre-caja-metodo-pago.controller';
+export * from './venta-almacen.controller';
+export * from './venta-factura.controller';
 export * from './venta-zapato.controller';
 export * from './zapato-venta.controller';
-export * from './venta-factura.controller';
-export * from './factura-venta.controller';
+

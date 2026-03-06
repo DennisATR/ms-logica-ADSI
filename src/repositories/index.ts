@@ -1,3 +1,4 @@
+export * from './cierre-caja.repository';
 export * from './cliente.repository';
 export * from './credito.repository';
 export * from './cuenta.repository';
@@ -14,7 +15,6 @@ export * from './metodo-pago.repository';
 export * from './pago.repository';
 export * from './pendiente.repository';
 export * from './proveedor.repository';
-export * from './reportes.repository';
 export * from './rol.repository';
 export * from './usuario.repository';
 export * from './vendedor.repository';
@@ -22,3 +22,5 @@ export * from './venta.repository';
 export * from './zapato.repository';
 
 export * from './almacen.repository';
+export * from './cierre-caja-metodo-pago.repository';
+
