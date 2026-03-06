@@ -1,3 +1,4 @@
+import {service} from '@loopback/core';
 import {
   Count,
   CountSchema,
@@ -19,6 +20,7 @@ import {
 } from '@loopback/rest';
 import {Venta} from '../models';
 import {FacturaRepository, InfolocalRepository, VentaRepository, ZapatoRepository} from '../repositories';
+import {ImpresoraService} from '../services';
 
 export class VentaController {
   constructor(
@@ -30,6 +32,8 @@ export class VentaController {
     public infolocalRepository: InfolocalRepository,
     @repository(FacturaRepository)
     public facturaRepository: FacturaRepository,
+    @service(ImpresoraService)
+    public impresoraService: ImpresoraService,
   ) { }
 
   @post('/venta')
@@ -69,10 +73,16 @@ export class VentaController {
 
     // Actualizar el total de la factura
     const factura = await this.facturaRepository.findById(venta.facturaId);
-    factura.Total += venta.Cantidad * venta.Precio;
-    await this.facturaRepository.updateById(factura.id, factura);
+    const nuevoTotal = factura.Total + venta.Cantidad * venta.Precio;
+    await this.facturaRepository.updateById(factura.id, {Total: nuevoTotal});
     // Crear la venta
-    return this.ventaRepository.create(venta);
+    const nuevaVenta = await this.ventaRepository.create(venta);
+
+    this.impresoraService.printFactura({id: venta.facturaId}).catch(err => {
+      console.error('Error al imprimir factura:', err);
+    });
+
+    return nuevaVenta;
   }
 
   @get('/venta/count')

@@ -1,4 +1,3 @@
-import {service} from '@loopback/core';
 import {
   Count,
   CountSchema,
@@ -20,15 +19,25 @@ import {
 } from '@loopback/rest';
 import {Factura} from '../models';
 import {FacturaRepository} from '../repositories';
-import {ImpresoraService} from '../services';
 
 export class FacturaController {
   constructor(
     @repository(FacturaRepository)
     public facturaRepository: FacturaRepository,
-    @service(ImpresoraService)
-    public impresoraService: ImpresoraService,
   ) { }
+
+  private getCurrentDateTime(): string {
+    const now = new Date();
+
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const h = String(now.getHours()).padStart(2, '0');
+    const min = String(now.getMinutes()).padStart(2, '0');
+    const s = String(now.getSeconds()).padStart(2, '0');
+
+    return `${y}-${m}-${d} ${h}:${min}:${s}`;
+  }
 
   @post('/factura')
   @response(200, {
@@ -48,11 +57,8 @@ export class FacturaController {
     })
     factura: Omit<Factura, 'id'>,
   ): Promise<Factura> {
-    const nuevaFactura = await this.facturaRepository.create(factura);
-    this.impresoraService.printFactura(nuevaFactura).catch(err => {
-      console.error('Error al imprimir factura:', err);
-    });
-    return nuevaFactura;
+    factura.Fecha = this.getCurrentDateTime();
+    return this.facturaRepository.create(factura);
   }
 
   @get('/factura/count')

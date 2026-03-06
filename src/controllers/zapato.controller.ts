@@ -20,7 +20,7 @@ import {
   response,
 } from '@loopback/rest';
 import {Zapato, ZapatoSerie, ZapatoUnidad} from '../models';
-import {AlmacenRepository, ZapatoRepository} from '../repositories';
+import {AlmacenRepository, InfolocalRepository, ZapatoRepository} from '../repositories';
 import {StickerService} from '../services';
 
 export class ZapatoController {
@@ -31,7 +31,22 @@ export class ZapatoController {
     public stickerService: StickerService,
     @repository(AlmacenRepository)
     public almacenRepository: AlmacenRepository,
+    @repository(InfolocalRepository)
+    public infolocalRepository: InfolocalRepository,
   ) { }
+
+  private getCurrentDateTime(): string {
+    const now = new Date();
+
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const h = String(now.getHours()).padStart(2, '0');
+    const min = String(now.getMinutes()).padStart(2, '0');
+    const s = String(now.getSeconds()).padStart(2, '0');
+
+    return `${y}-${m}-${d} ${h}:${min}:${s}`;
+  }
 
   @post('/zapato')
   @response(200, {
@@ -43,22 +58,25 @@ export class ZapatoController {
       content: {
         'application/json': {
           schema: getModelSchemaRef(ZapatoUnidad, {
-            title: 'NewZapato'
+            title: 'NewZapato',
+            exclude: ['Fecha'],
           }),
         },
       },
     })
     data: ZapatoUnidad,
   ): Promise<Zapato> {
-    // Obtener el prefijo del almacén para generar el ID del zapato
-    const almacenes = await this.almacenRepository.find({limit: 1});
-    if (almacenes.length === 0) {
-      throw new HttpErrors.BadRequest('No hay almacenes disponibles para generar el ID del zapato.');
+    // Obtener el prefijo del almacén perteneciente al infolocal
+    const infolocal = await this.infolocalRepository.findOne();
+    if (!infolocal) {
+      throw new HttpErrors.InternalServerError('No se encontró información del local.');
     }
-    const prefijoAlmacen = almacenes[0].Prefijo
+    const almacen = await this.almacenRepository.findById(infolocal.almacenId);
+    const prefijoAlmacen = almacen.Prefijo;
 
     // Extraer la descripción y categoría para generar el prefijo
-    const {Descripcion, Categoria, Talla, id, Referencia, PrecioVentaMax, PrecioVentaMin, ...commonData} = data;
+    const {Descripcion, Categoria, Talla, id, Referencia, PrecioVentaMax, PrecioVentaMin, Color, Fecha, ...commonData} = data;
+
 
     let zapatoConId;
     // Decodificar la referencia en Base64 para obtener el precio
@@ -74,6 +92,8 @@ export class ZapatoController {
       throw new HttpErrors.BadRequest('El precio de venta mínimo no puede ser mayor que el máximo.');
     }
 
+    const currentDateTime = this.getCurrentDateTime();
+
     // Si el ID no es proporcionado, generarlo
     if (id) {
       // Si el ID es proporcionado, lo usamos tal cual
@@ -85,19 +105,29 @@ export class ZapatoController {
         PrecioCosto: precioDecodificado,
         PrecioVentaMax: PrecioVentaMax,
         PrecioVentaMin: PrecioVentaMin,
-        ...commonData,
+        Color: Color,
+        Fecha: currentDateTime,
+        ...commonData
       };
     } else {
 
       // Generar el ID si no fue proporcionado
-      const prefijoDescripcion = Descripcion.substring(0, 3).toUpperCase();
+      let prefijoDescripcion = Descripcion.substring(0, 3).toUpperCase();
+      // Si en descripcion hay un numero agregamos el numero al prefijo
+      const numeroEnDescripcion = Descripcion.match(/\d+/);
+      if (numeroEnDescripcion) {
+        const numero = numeroEnDescripcion[0].padStart(3, '0');
+        prefijoDescripcion += numero;
+      }
       const prefijoCategoria = Categoria.substring(0, 3).toUpperCase();
+      const prefijoColor = Color ? Color.substring(0, 3).toUpperCase() : "COL";
+
 
       // Obtener el consecutivo
       const consecutivo = await this.obtenerConsecutivo(prefijoDescripcion, prefijoCategoria);
 
       // Generar el ID para el zapato individual
-      const generatedId = `${prefijoAlmacen}${prefijoDescripcion}${prefijoCategoria}${consecutivo}${Talla}`;
+      const generatedId = `${prefijoAlmacen}${prefijoDescripcion}${prefijoCategoria}${prefijoColor}${consecutivo}${Talla}`;
 
       zapatoConId = {
         id: generatedId,
@@ -107,7 +137,10 @@ export class ZapatoController {
         PrecioCosto: precioDecodificado,
         PrecioVentaMax: PrecioVentaMax,
         PrecioVentaMin: PrecioVentaMin,
+        Color: Color,
+        Fecha: currentDateTime,
         ...commonData,
+
       };
     }
     // Crear el zapato con el ID generado o proporcionado
@@ -289,17 +322,22 @@ export class ZapatoController {
     @requestBody({
       content: {
         'application/json': {
-          schema: getModelSchemaRef(ZapatoSerie, {title: 'CreateZapatoSerie'}),
+          schema: getModelSchemaRef(ZapatoSerie, {
+            title: 'CreateZapatoSerie',
+            exclude: ['Fecha'],
+          }),
         },
       },
     })
     data: ZapatoSerie,
   ): Promise<Zapato[]> {
-    const {TallaInicial, TallaFinal, Cantidad, Descripcion, Categoria, Referencia, Prefijo, PrecioVentaMax, PrecioVentaMin, ...commonData} = data;
+    const {TallaInicial, TallaFinal, Cantidad, Descripcion, Categoria, Referencia, Prefijo, PrecioVentaMax, PrecioVentaMin, Color, ...commonData} = data;
 
     if (TallaInicial > TallaFinal) {
       throw new HttpErrors.BadRequest('La talla inicial no puede ser mayor que la talla final.');
     }
+
+    const currentDateTime = this.getCurrentDateTime();
 
     if (PrecioVentaMax < PrecioVentaMin) {
       throw new HttpErrors.BadRequest('El precio de venta mínimo no puede ser mayor que el máximo.');
@@ -325,12 +363,25 @@ export class ZapatoController {
       throw new HttpErrors.BadRequest('Referencia inválida.');
     }
 
+    const infolocal = await this.infolocalRepository.findOne();
+    if (!infolocal) {
+      throw new HttpErrors.InternalServerError('No se encontró información del local.');
+    }
+
+    const almacen = await this.almacenRepository.findById(infolocal.almacenId);
+    const prefijoAlmacen = almacen.Prefijo;
     let prefijoFinal = Prefijo;
+
     if (!prefijoFinal) {
-      const prefijoDescripcion = Descripcion.substring(0, 3).toUpperCase();
+      let prefijoDescripcion = Descripcion.substring(0, 3).toUpperCase();
+      if (Descripcion.match(/\d+/)) {
+        const numero = Descripcion.match(/\d+/)![0].padStart(3, '0');
+        prefijoDescripcion += numero;
+      }
       const prefijoCategoria = Categoria.substring(0, 3).toUpperCase();
+      const prefijoColor = Color.substring(0, 3).toUpperCase();
       const consecutivo = await this.obtenerConsecutivo(prefijoDescripcion, prefijoCategoria);
-      prefijoFinal = `${prefijoDescripcion}${prefijoCategoria}${consecutivo}`;
+      prefijoFinal = `${prefijoAlmacen}${prefijoDescripcion}${prefijoCategoria}${prefijoColor}${consecutivo}`;
     }
 
     for (let i = 0; i < totalTallas; i++) {
@@ -347,6 +398,7 @@ export class ZapatoController {
         PrecioVentaMax: PrecioVentaMax,
         PrecioVentaMin: PrecioVentaMin,
         ...commonData,
+        Fecha: currentDateTime,
       };
 
       try {

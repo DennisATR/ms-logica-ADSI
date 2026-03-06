@@ -50,8 +50,11 @@ export class Factura extends Entity {
   Abono: number;
 
   @property({
-    type: 'date',
+    type: 'string',
     required: true,
+    mysql: {
+      dataType: 'datetime',
+    },
   })
   Fecha: string;
 
