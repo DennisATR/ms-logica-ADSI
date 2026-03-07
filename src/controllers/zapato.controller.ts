@@ -35,19 +35,6 @@ export class ZapatoController {
     public infolocalRepository: InfolocalRepository,
   ) { }
 
-  private getCurrentDateTime(): string {
-    const now = new Date();
-
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, '0');
-    const d = String(now.getDate()).padStart(2, '0');
-    const h = String(now.getHours()).padStart(2, '0');
-    const min = String(now.getMinutes()).padStart(2, '0');
-    const s = String(now.getSeconds()).padStart(2, '0');
-
-    return `${y}-${m}-${d} ${h}:${min}:${s}`;
-  }
-
   @post('/zapato')
   @response(200, {
     description: 'Zapato model instance',
@@ -92,7 +79,8 @@ export class ZapatoController {
       throw new HttpErrors.BadRequest('El precio de venta mínimo no puede ser mayor que el máximo.');
     }
 
-    const currentDateTime = this.getCurrentDateTime();
+    const FechaRegistro = new Date().toLocaleString('sv-SE', {timeZone: 'America/Bogota'});
+    console.log(FechaRegistro);
 
     // Si el ID no es proporcionado, generarlo
     if (id) {
@@ -106,7 +94,7 @@ export class ZapatoController {
         PrecioVentaMax: PrecioVentaMax,
         PrecioVentaMin: PrecioVentaMin,
         Color: Color,
-        Fecha: currentDateTime,
+        Fecha: FechaRegistro,
         ...commonData
       };
     } else {
@@ -124,7 +112,7 @@ export class ZapatoController {
 
 
       // Obtener el consecutivo
-      const consecutivo = await this.obtenerConsecutivo(prefijoDescripcion, prefijoCategoria);
+      const consecutivo = await this.obtenerConsecutivo(prefijoAlmacen, prefijoDescripcion, prefijoCategoria, prefijoColor);
 
       // Generar el ID para el zapato individual
       const generatedId = `${prefijoAlmacen}${prefijoDescripcion}${prefijoCategoria}${prefijoColor}${consecutivo}${Talla}`;
@@ -138,7 +126,7 @@ export class ZapatoController {
         PrecioVentaMax: PrecioVentaMax,
         PrecioVentaMin: PrecioVentaMin,
         Color: Color,
-        Fecha: currentDateTime,
+        Fecha: FechaRegistro,
         ...commonData,
 
       };
@@ -337,7 +325,7 @@ export class ZapatoController {
       throw new HttpErrors.BadRequest('La talla inicial no puede ser mayor que la talla final.');
     }
 
-    const currentDateTime = this.getCurrentDateTime();
+    const FechaRegistro = new Date().toLocaleString('sv-SE', {timeZone: 'America/Bogota'});
 
     if (PrecioVentaMax < PrecioVentaMin) {
       throw new HttpErrors.BadRequest('El precio de venta mínimo no puede ser mayor que el máximo.');
@@ -380,7 +368,7 @@ export class ZapatoController {
       }
       const prefijoCategoria = Categoria.substring(0, 3).toUpperCase();
       const prefijoColor = Color.substring(0, 3).toUpperCase();
-      const consecutivo = await this.obtenerConsecutivo(prefijoDescripcion, prefijoCategoria);
+      const consecutivo = await this.obtenerConsecutivo(prefijoAlmacen, prefijoDescripcion, prefijoCategoria, prefijoColor);
       prefijoFinal = `${prefijoAlmacen}${prefijoDescripcion}${prefijoCategoria}${prefijoColor}${consecutivo}`;
     }
 
@@ -398,7 +386,7 @@ export class ZapatoController {
         PrecioVentaMax: PrecioVentaMax,
         PrecioVentaMin: PrecioVentaMin,
         ...commonData,
-        Fecha: currentDateTime,
+        Fecha: FechaRegistro,
       };
 
       try {
@@ -418,15 +406,15 @@ export class ZapatoController {
 
 
   // Método para obtener el consecutivo actual basado en descripción y categoría
-  async obtenerConsecutivo(prefijoDescripcion: string, prefijoCategoria: string): Promise<string> {
-    const filtro = new RegExp(`^${prefijoDescripcion}${prefijoCategoria}\\d{3}`);
+  async obtenerConsecutivo(prefijoAlmacen: string, prefijoDescripcion: string, prefijoCategoria: string, prefijoColor: string): Promise<string> {
+    const filtro = new RegExp(`^${prefijoAlmacen}${prefijoDescripcion}${prefijoCategoria}${prefijoColor}\\d{3}`);
     const existentes = await this.zapatoRepository.find({
       where: {id: {regexp: filtro}},
     });
-
-    const numeros = existentes
-      .map(zapato => zapato.id ? parseInt(zapato.id.substring(6, 9)) : NaN)
-      .filter(n => !isNaN(n));
+    const numeros = existentes.map(z => {
+      const match = z.id?.match(new RegExp(`^${prefijoAlmacen}${prefijoDescripcion}${prefijoCategoria}${prefijoColor}(\\d{3})`));
+      return match ? parseInt(match[1]) : 0;
+    });
     const maxNumero = numeros.length > 0 ? Math.max(...numeros) : 0;
 
     // Incrementar y retornar en formato de 3 dígitos

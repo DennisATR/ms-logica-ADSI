@@ -75,7 +75,7 @@ export class Zapato extends Entity {
   Cantidad: number;
 
   @property({
-    type: 'date',
+    type: 'string',
     required: true,
     mysql: {
       dataType: 'datetime',

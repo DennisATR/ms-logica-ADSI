@@ -7,13 +7,13 @@ import {
   Where,
 } from '@loopback/repository';
 import {
-  post,
-  param,
+  del,
   get,
   getModelSchemaRef,
+  param,
   patch,
+  post,
   put,
-  del,
   requestBody,
   response,
 } from '@loopback/rest';
@@ -23,8 +23,8 @@ import {MermasRepository} from '../repositories';
 export class MermasController {
   constructor(
     @repository(MermasRepository)
-    public mermasRepository : MermasRepository,
-  ) {}
+    public mermasRepository: MermasRepository,
+  ) { }
 
   @post('/mermas')
   @response(200, {
@@ -37,13 +37,15 @@ export class MermasController {
         'application/json': {
           schema: getModelSchemaRef(Mermas, {
             title: 'NewMermas',
-            exclude: ['id'],
+            exclude: ['id', 'Fecha'],
           }),
         },
       },
     })
     mermas: Omit<Mermas, 'id'>,
   ): Promise<Mermas> {
+    const FechaRegistro = new Date().toLocaleString('sv-SE', {timeZone: 'America/Bogota'});
+    mermas.Fecha = FechaRegistro;
     return this.mermasRepository.create(mermas);
   }
 

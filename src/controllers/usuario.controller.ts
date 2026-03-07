@@ -202,10 +202,12 @@ export class UsuarioController {
     credentials: Credenciales,
   ): Promise<object> {
     let user = await this.seguridadUsuarioService.identificarUsuario(credentials);
+    const fechaRegistro = new Date().toLocaleString('sv-SE', {timeZone: 'America/Bogota'});
+    console.log(fechaRegistro);
     if (user) {
       let login: Login = new Login();
       login.usuarioId = user.id!; // Este dato _id si o si va a llegar
-      login.Fecha = new Date().toString();
+      login.Fecha = fechaRegistro;
       this.loginRepository.create(login);
       return user;
     }
@@ -216,6 +218,7 @@ export class UsuarioController {
 cambiar su contraseña. Se necesita un cuerpo de solicitud que contiene el
 modelo `CambioClave`, que representa la dirección de correo electrónico del
 usuario, su contraseña actual y la contraseña nueva. */
+
   @patch('/cambiar-clave')
   @response(200, {
     description: 'Usuario model instance',

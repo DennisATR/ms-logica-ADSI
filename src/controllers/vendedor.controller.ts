@@ -44,21 +44,21 @@ export class VendedorController {
     })
     vendedor: Omit<Vendedor, 'id'>,
   ): Promise<Vendedor> {
-    const fechaRegistro = new Date();
+    const fechaRegistro = new Date().toLocaleString('sv-SE', {timeZone: 'America/Bogota'});
 
     const nuevoVendedor = {
       ...vendedor,
       id: await this.generarIdVendedor(fechaRegistro),
-      FechaReg: fechaRegistro.toISOString()
+      FechaReg: fechaRegistro
     };
 
     return this.vendedorRepository.create(nuevoVendedor);
   }
 
-  private async generarIdVendedor(fecha: Date): Promise<string> {
-    const año = fecha.getFullYear().toString();
-    const dia = fecha.getDate().toString().padStart(2, '0');
-    const mes = (fecha.getMonth() + 1).toString().padStart(2, '0');
+  private async generarIdVendedor(fecha: string): Promise<string> {
+    const año = fecha.substring(0, 4);
+    const dia = fecha.substring(8, 10);
+    const mes = fecha.substring(5, 7);
     const prefijo = año + dia + mes;
     const ultimoVendedor = await this.vendedorRepository.findOne({
       where: {

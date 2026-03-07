@@ -34,8 +34,11 @@ export class Entrega extends Entity {
   Cobro: number;
 
   @property({
-    type: 'date',
+    type: 'string',
     required: true,
+    mysql: {
+      dataType: 'datetime',
+    },
   })
   Fecha: string;
 

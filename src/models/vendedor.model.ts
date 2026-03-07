@@ -1,6 +1,6 @@
-import {Entity, model, property, hasMany} from '@loopback/repository';
-import {Pago} from './pago.model';
+import {Entity, hasMany, model, property} from '@loopback/repository';
 import {Factura} from './factura.model';
+import {Pago} from './pago.model';
 
 @model()
 export class Vendedor extends Entity {
@@ -35,8 +35,11 @@ export class Vendedor extends Entity {
   Correo?: string;
 
   @property({
-    type: 'date',
+    type: 'string',
     required: true,
+    mysql: {
+      dataType: 'datetime',
+    },
   })
   FechaReg: string;
 

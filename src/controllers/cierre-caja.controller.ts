@@ -44,7 +44,8 @@ export class CierreCajaController {
     })
     cierreCaja: Omit<CierreCaja, 'id'>,
   ): Promise<CierreCaja> {
-    cierreCaja.FechaHoraApertura = new Date().toISOString();
+    const fechaRegistro = new Date().toLocaleString('sv-SE', {timeZone: 'America/Bogota'});
+    cierreCaja.FechaHoraApertura = fechaRegistro;
     return this.cierreCajaRepository.create(cierreCaja);
   }
 

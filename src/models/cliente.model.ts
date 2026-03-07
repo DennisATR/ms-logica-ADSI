@@ -49,9 +49,20 @@ export class Cliente extends Entity {
   Telefono?: string;
 
   @property({
-    type: 'date',
+    type: 'string',
+    mysql: {
+      dataType: 'datetime',
+    },
   })
   FechaNac?: string;
+
+  @property({
+    type: 'string',
+    mysql: {
+      dataType: 'datetime',
+    },
+  })
+  FechaReg?: string;
 
   @hasMany(() => Factura)
   facturas: Factura[];

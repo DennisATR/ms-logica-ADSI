@@ -7,24 +7,26 @@ import {
   Where,
 } from '@loopback/repository';
 import {
-  post,
-  param,
+  del,
   get,
   getModelSchemaRef,
+  param,
   patch,
+  post,
   put,
-  del,
   requestBody,
   response,
 } from '@loopback/rest';
 import {Login} from '../models';
-import {LoginRepository} from '../repositories';
+import {CierreCajaRepository, LoginRepository} from '../repositories';
 
 export class LoginController {
   constructor(
     @repository(LoginRepository)
-    public loginRepository : LoginRepository,
-  ) {}
+    public loginRepository: LoginRepository,
+    @repository(CierreCajaRepository)
+    public cierreCajaRepository: CierreCajaRepository,
+  ) { }
 
   @post('/login')
   @response(200, {

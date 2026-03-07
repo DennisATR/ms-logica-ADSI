@@ -7,13 +7,13 @@ import {
   Where,
 } from '@loopback/repository';
 import {
-  post,
-  param,
+  del,
   get,
   getModelSchemaRef,
+  param,
   patch,
+  post,
   put,
-  del,
   requestBody,
   response,
 } from '@loopback/rest';
@@ -23,8 +23,8 @@ import {EntregaRepository} from '../repositories';
 export class EntregaController {
   constructor(
     @repository(EntregaRepository)
-    public entregaRepository : EntregaRepository,
-  ) {}
+    public entregaRepository: EntregaRepository,
+  ) { }
 
   @post('/entrega')
   @response(200, {
@@ -44,6 +44,12 @@ export class EntregaController {
     })
     entrega: Omit<Entrega, 'id'>,
   ): Promise<Entrega> {
+    if (entrega.Fecha) {
+      entrega.Fecha = new Date(entrega.Fecha)
+        .toISOString()
+        .slice(0, 19)
+        .replace('T', ' ');
+    }
     return this.entregaRepository.create(entrega);
   }
 

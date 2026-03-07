@@ -56,8 +56,11 @@ export class Usuario extends Entity {
   Clave: string;
 
   @property({
-    type: 'date',
+    type: 'string',
     required: true,
+    mysql: {
+      dataType: 'datetime',
+    },
   })
   FechaReg: string;
 

@@ -63,8 +63,11 @@ export class ZapatoSerie extends Model {
   TallaFinal: number;
 
   @property({
-    type: 'date',
+    type: 'string',
     required: true,
+    mysql: {
+      dataType: 'datetime',
+    },
   })
   Fecha: string;
 

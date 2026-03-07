@@ -7,13 +7,13 @@ import {
   Where,
 } from '@loopback/repository';
 import {
-  post,
-  param,
+  del,
   get,
   getModelSchemaRef,
+  param,
   patch,
+  post,
   put,
-  del,
   requestBody,
   response,
 } from '@loopback/rest';
@@ -23,8 +23,8 @@ import {GastosRepository} from '../repositories';
 export class GastosController {
   constructor(
     @repository(GastosRepository)
-    public gastosRepository : GastosRepository,
-  ) {}
+    public gastosRepository: GastosRepository,
+  ) { }
 
   @post('/gastos')
   @response(200, {

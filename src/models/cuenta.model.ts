@@ -38,19 +38,28 @@ export class Cuenta extends Entity {
   NumeroPares: number;
 
   @property({
-    type: 'date',
+    type: 'string',
     required: true,
+    mysql: {
+      dataType: 'datetime',
+    },
   })
   FechaReg: string;
 
   @property({
-    type: 'date',
+    type: 'string',
     required: true,
+    mysql: {
+      dataType: 'datetime',
+    },
   })
   FechaVen: string;
 
   @property({
-    type: 'date',
+    type: 'string',
+    mysql: {
+      dataType: 'datetime',
+    },
   })
   FechaPago?: string;
 

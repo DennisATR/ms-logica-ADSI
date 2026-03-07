@@ -34,6 +34,15 @@ export class Devolucion extends Entity {
   })
   Observacion: string;
 
+  @property({
+    type: 'string',
+    required: true,
+    mysql: {
+      dataType: 'datetime',
+    },
+  })
+  Fecha: string;
+
   @belongsTo(() => Venta)
   ventaId: number;
 

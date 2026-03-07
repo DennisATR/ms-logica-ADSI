@@ -7,13 +7,13 @@ import {
   Where,
 } from '@loopback/repository';
 import {
-  post,
-  param,
+  del,
   get,
   getModelSchemaRef,
+  param,
   patch,
+  post,
   put,
-  del,
   requestBody,
   response,
 } from '@loopback/rest';
@@ -23,8 +23,8 @@ import {PagoRepository} from '../repositories';
 export class PagoController {
   constructor(
     @repository(PagoRepository)
-    public pagoRepository : PagoRepository,
-  ) {}
+    public pagoRepository: PagoRepository,
+  ) { }
 
   @post('/pago')
   @response(200, {
@@ -37,13 +37,15 @@ export class PagoController {
         'application/json': {
           schema: getModelSchemaRef(Pago, {
             title: 'NewPago',
-            exclude: ['id'],
+            exclude: ['id', 'Fecha'],
           }),
         },
       },
     })
     pago: Omit<Pago, 'id'>,
   ): Promise<Pago> {
+    const FechaRegistro = new Date().toLocaleString('sv-SE', {timeZone: 'America/Bogota'});
+    pago.Fecha = FechaRegistro;
     return this.pagoRepository.create(pago);
   }
 

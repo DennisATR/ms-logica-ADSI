@@ -21,7 +21,6 @@ export class CierreCaja extends Entity {
 
   @property({
     type: 'string',
-    required: true,
     mysql: {
       dataType: 'datetime',
     },
@@ -62,6 +61,16 @@ export class CierreCaja extends Entity {
     type: 'string',
   })
   Estado?: string;
+
+  @property({
+    type: 'number',
+  })
+  Caja?: number;
+
+  @property({
+    type: 'number',
+  })
+  Entrega?: number;
 
   @hasMany(() => CierreCajaMetodoPago)
   cierreCajaMetodoPagos: CierreCajaMetodoPago[];

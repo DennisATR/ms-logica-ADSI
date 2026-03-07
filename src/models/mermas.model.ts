@@ -10,8 +10,11 @@ export class Mermas extends Entity {
   id?: number;
 
   @property({
-    type: 'date',
+    type: 'string',
     required: true,
+    mysql: {
+      dataType: 'datetime',
+    },
   })
   Fecha: string;
 
