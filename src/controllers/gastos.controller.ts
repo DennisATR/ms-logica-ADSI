@@ -147,4 +147,33 @@ export class GastosController {
   async deleteById(@param.path.number('id') id: number): Promise<void> {
     await this.gastosRepository.deleteById(id);
   }
+
+  @get('/gastos/buscarporfecha/{fecha}')
+  @response(200, {
+    description: 'Array of Gastos model instances',
+    content: {
+      'application/json': {
+        schema: {
+          type: 'array',
+          items: getModelSchemaRef(Gastos, {includeRelations: true}),
+        },
+      },
+    },
+  })
+  async findByDate(
+    @param.path.string('fecha') fecha: string,
+  ): Promise<Gastos[]> {
+
+    const fechaString = new Date(fecha)
+      .toISOString()
+      .slice(0, 19)
+      .replace('T', ' ');
+
+    return this.gastosRepository.find({
+      where: {
+        Fecha: fechaString,
+      },
+    });
+  }
+
 }

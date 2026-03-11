@@ -26,19 +26,6 @@ export class FacturaController {
     public facturaRepository: FacturaRepository,
   ) { }
 
-  private getCurrentDateTime(): string {
-    const now = new Date();
-
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, '0');
-    const d = String(now.getDate()).padStart(2, '0');
-    const h = String(now.getHours()).padStart(2, '0');
-    const min = String(now.getMinutes()).padStart(2, '0');
-    const s = String(now.getSeconds()).padStart(2, '0');
-
-    return `${y}-${m}-${d} ${h}:${min}:${s}`;
-  }
-
   @post('/factura')
   @response(200, {
     description: 'Factura model instance',
@@ -50,14 +37,14 @@ export class FacturaController {
         'application/json': {
           schema: getModelSchemaRef(Factura, {
             title: 'NewFactura',
-            exclude: ['id'],
+            exclude: ['id', 'Fecha'],
           }),
         },
       },
     })
     factura: Omit<Factura, 'id'>,
   ): Promise<Factura> {
-    factura.Fecha = this.getCurrentDateTime();
+    factura.Fecha = new Date().toLocaleString('sv-SE', {timeZone: 'America/Bogota'});
     return this.facturaRepository.create(factura);
   }
 

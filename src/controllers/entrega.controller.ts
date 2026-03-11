@@ -44,12 +44,6 @@ export class EntregaController {
     })
     entrega: Omit<Entrega, 'id'>,
   ): Promise<Entrega> {
-    if (entrega.Fecha) {
-      entrega.Fecha = new Date(entrega.Fecha)
-        .toISOString()
-        .slice(0, 19)
-        .replace('T', ' ');
-    }
     return this.entregaRepository.create(entrega);
   }
 
@@ -153,4 +147,33 @@ export class EntregaController {
   async deleteById(@param.path.number('id') id: number): Promise<void> {
     await this.entregaRepository.deleteById(id);
   }
+
+  @get('/entrega/buscarporfecha/{fecha}')
+  @response(200, {
+    description: 'Array of Entrega model instances',
+    content: {
+      'application/json': {
+        schema: {
+          type: 'array',
+          items: getModelSchemaRef(Entrega, {includeRelations: true}),
+        },
+      },
+    },
+  })
+  async findByDate(
+    @param.path.string('fecha') fecha: string,
+  ): Promise<Entrega[]> {
+
+    const fechaString = new Date(fecha)
+      .toISOString()
+      .slice(0, 19)
+      .replace('T', ' ');
+
+    return this.entregaRepository.find({
+      where: {
+        Fecha: fechaString,
+      },
+    });
+  }
+
 }
