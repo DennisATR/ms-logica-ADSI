@@ -83,6 +83,13 @@ export class Zapato extends Entity {
   })
   Fecha: string;
 
+  @property({
+    type: 'string',
+    required: true,
+  })
+  Genero?: string;
+
+
   @hasMany(() => Factura, {through: {model: () => Venta}})
   facturas: Factura[];
 

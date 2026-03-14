@@ -71,6 +71,12 @@ export class ZapatoUnidad extends Model {
   })
   proveedorId: number;
 
+  @property({
+    type: 'string',
+    required: true,
+  })
+  Genero?: string;
+
   constructor(data?: Partial<ZapatoUnidad>) {
     super(data);
   }

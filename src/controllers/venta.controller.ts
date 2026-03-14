@@ -58,8 +58,8 @@ export class VentaController {
     const zapato = await this.zapatoRepository.findById(venta.zapatoId);
 
     // Restar la cantidad vendida del stock del zapato
-    zapato.Cantidad -= venta.Cantidad;
-    await this.zapatoRepository.updateById(zapato.id, zapato);
+    const nuevaCantidad = zapato.Cantidad - venta.Cantidad;
+    await this.zapatoRepository.updateById(zapato.id, {Cantidad: nuevaCantidad});
 
     // Obtener el último registro de Infolocal
     const [latestInfolocal] = await this.infolocalRepository.find({
@@ -94,6 +94,64 @@ export class VentaController {
     @param.where(Venta) where?: Where<Venta>,
   ): Promise<Count> {
     return this.ventaRepository.count(where);
+  }
+
+  @get('/venta/cantidad-zapatos-vendidos/fecha/{fecha}')
+  @response(200, {
+    description: 'Cantidad de zapatos vendidos por fecha',
+    content: {
+      'application/json': {
+        schema: {
+          type: 'object',
+          required: ['fecha', 'cantidad'],
+          properties: {
+            fecha: {type: 'string'},
+            cantidad: {type: 'number'},
+          },
+        },
+      },
+    },
+  })
+  async cantidadVendidaPorFecha(
+    @param.path.string('fecha') fecha: string,
+  ): Promise<{fecha: string; cantidad: number}> {
+    const soloFecha = fecha.slice(0, 10);
+
+    const facturasDelDia = await this.facturaRepository.find({
+      where: {
+        Fecha: {
+          like: `${soloFecha}%`,
+        },
+      },
+      fields: {
+        id: true,
+      },
+    });
+
+    const facturaIds = facturasDelDia
+      .map(factura => factura.id)
+      .filter((id): id is number => typeof id === 'number');
+
+    if (facturaIds.length === 0) {
+      return {fecha: soloFecha, cantidad: 0};
+    }
+
+    const ventasDelDia = await this.ventaRepository.find({
+      where: {
+        facturaId: {
+          inq: facturaIds,
+        },
+      },
+      fields: {
+        Cantidad: true,
+      },
+    });
+
+    const cantidad = ventasDelDia.reduce((acumulado, venta) => {
+      return acumulado + venta.Cantidad;
+    }, 0);
+
+    return {fecha: soloFecha, cantidad};
   }
 
   @get('/venta')

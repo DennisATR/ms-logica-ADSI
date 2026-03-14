@@ -77,6 +77,12 @@ export class ZapatoSerie extends Model {
   })
   proveedorId: number;
 
+  @property({
+    type: 'string',
+    required: true,
+  })
+  Genero?: string;
+
   constructor(data?: Partial<ZapatoSerie>) {
     super(data);
   }
