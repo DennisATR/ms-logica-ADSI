@@ -17,7 +17,7 @@ import {
   requestBody,
   response,
 } from '@loopback/rest';
-import {Entrega} from '../models';
+import {Entrega, ResumenDelDiaEntregas} from '../models';
 import {EntregaRepository} from '../repositories';
 
 export class EntregaController {
@@ -56,6 +56,59 @@ export class EntregaController {
     @param.where(Entrega) where?: Where<Entrega>,
   ): Promise<Count> {
     return this.entregaRepository.count(where);
+  }
+
+  @get('/entrega/resumen-dia/fecha/{fecha}')
+  @response(200, {
+    description: 'Resumen de entregas por fecha y por empresa transportista',
+    content: {
+      'application/json': {
+        schema: {
+          type: 'array',
+          items: getModelSchemaRef(ResumenDelDiaEntregas),
+        },
+      },
+    },
+  })
+  async resumenEntregasPorDia(
+    @param.path.string('fecha') fecha: string,
+  ): Promise<ResumenDelDiaEntregas[]> {
+    const soloFecha = fecha.slice(0, 10);
+
+    const entregasDelDia = await this.entregaRepository.find({
+      where: {
+        Fecha: {
+          like: `${soloFecha}%`,
+        },
+      },
+    });
+
+    if (entregasDelDia.length === 0) {
+      return [];
+    }
+
+    const resumenPorEmpresa = new Map<string, {
+      empresa: string;
+      cantidadCajas: number;
+      cobro: number;
+    }>();
+
+    for (const entrega of entregasDelDia) {
+      const clave = entrega.EmpresaTrans;
+
+      const acumulado = resumenPorEmpresa.get(clave) ?? {
+        empresa: clave,
+        cantidadCajas: 0,
+        cobro: 0,
+      };
+
+      acumulado.cantidadCajas += entrega.NumCajas;
+      acumulado.cobro += entrega.Cobro;
+
+      resumenPorEmpresa.set(clave, acumulado);
+    }
+
+    return Array.from(resumenPorEmpresa.values()).map(item => new ResumenDelDiaEntregas(item));
   }
 
   @get('/entrega')

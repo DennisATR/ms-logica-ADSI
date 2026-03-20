@@ -7,24 +7,26 @@ import {
   Where,
 } from '@loopback/repository';
 import {
-  post,
-  param,
+  del,
   get,
   getModelSchemaRef,
+  param,
   patch,
+  post,
   put,
-  del,
   requestBody,
   response,
 } from '@loopback/rest';
-import {MetodoPago} from '../models';
-import {MetodoPagoRepository} from '../repositories';
+import {MetodoPago, ResumenDelDiaMetodoPago} from '../models';
+import {FacturaRepository, MetodoPagoRepository} from '../repositories';
 
 export class MetodoPagoController {
   constructor(
     @repository(MetodoPagoRepository)
-    public metodoPagoRepository : MetodoPagoRepository,
-  ) {}
+    public metodoPagoRepository: MetodoPagoRepository,
+    @repository(FacturaRepository)
+    public facturaRepository: FacturaRepository,
+  ) { }
 
   @post('/metodo-pago')
   @response(200, {
@@ -56,6 +58,58 @@ export class MetodoPagoController {
     @param.where(MetodoPago) where?: Where<MetodoPago>,
   ): Promise<Count> {
     return this.metodoPagoRepository.count(where);
+  }
+
+  @get('/metodo-pago/resumen-dia/fecha/{fecha}')
+  @response(200, {
+    description: 'Resumen de ventas por fecha y por metodo de pago',
+    content: {
+      'application/json': {
+        schema: {
+          type: 'array',
+          items: getModelSchemaRef(ResumenDelDiaMetodoPago),
+        },
+      },
+    },
+  })
+  async resumenMetodoPagoPorDia(
+    @param.path.string('fecha') fecha: string,
+  ): Promise<ResumenDelDiaMetodoPago[]> {
+    const soloFecha = fecha.slice(0, 10);
+
+    const facturasDelDia = await this.facturaRepository.find({
+      where: {
+        Fecha: {
+          like: `${soloFecha}%`,
+        },
+      },
+      include: [{relation: 'metodoPago'}],
+    }) as Array<any>;
+
+    if (facturasDelDia.length === 0) {
+      return [];
+    }
+
+    const resumenPorMetodoPago = new Map<number, {
+      nombre: string;
+      valor: number;
+    }>();
+
+    for (const factura of facturasDelDia) {
+      const clave = factura.metodoPagoId;
+      const nombre = factura.metodoPago?.Nombre ?? 'Sin método de pago';
+
+      const acumulado = resumenPorMetodoPago.get(clave) ?? {
+        nombre,
+        valor: 0,
+      };
+
+      acumulado.valor += factura.Total;
+
+      resumenPorMetodoPago.set(clave, acumulado);
+    }
+
+    return Array.from(resumenPorMetodoPago.values()).map(item => new ResumenDelDiaMetodoPago(item));
   }
 
   @get('/metodo-pago')

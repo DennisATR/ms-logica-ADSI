@@ -17,7 +17,7 @@ import {
   requestBody,
   response,
 } from '@loopback/rest';
-import {Gastos} from '../models';
+import {Gastos, ResumenDelDiaGastos} from '../models';
 import {GastosRepository} from '../repositories';
 
 export class GastosController {
@@ -56,6 +56,59 @@ export class GastosController {
     @param.where(Gastos) where?: Where<Gastos>,
   ): Promise<Count> {
     return this.gastosRepository.count(where);
+  }
+
+  @get('/gastos/resumen-dia/fecha/{fecha}')
+  @response(200, {
+    description: 'Resumen de gastos por fecha y por concepto',
+    content: {
+      'application/json': {
+        schema: {
+          type: 'array',
+          items: getModelSchemaRef(ResumenDelDiaGastos),
+        },
+      },
+    },
+  })
+  async resumenGastosPorDia(
+    @param.path.string('fecha') fecha: string,
+  ): Promise<ResumenDelDiaGastos[]> {
+    const soloFecha = fecha.slice(0, 10);
+
+    const gastosDelDia = await this.gastosRepository.find({
+      where: {
+        Fecha: {
+          like: `${soloFecha}%`,
+        },
+      },
+    });
+
+    if (gastosDelDia.length === 0) {
+      return [];
+    }
+
+    const resumenPorConcepto = new Map<string, {
+      concepto: string;
+      cantidad: number;
+      valor: number;
+    }>();
+
+    for (const gasto of gastosDelDia) {
+      const clave = gasto.Concepto;
+
+      const acumulado = resumenPorConcepto.get(clave) ?? {
+        concepto: clave,
+        cantidad: 0,
+        valor: 0,
+      };
+
+      acumulado.cantidad += 1;
+      acumulado.valor += gasto.Valor;
+
+      resumenPorConcepto.set(clave, acumulado);
+    }
+
+    return Array.from(resumenPorConcepto.values()).map(item => new ResumenDelDiaGastos(item));
   }
 
   @get('/gastos')

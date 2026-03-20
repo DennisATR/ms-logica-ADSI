@@ -18,7 +18,7 @@ import {
   requestBody,
   response,
 } from '@loopback/rest';
-import {Venta} from '../models';
+import {ResumenDelDiaVentas, Venta} from '../models';
 import {FacturaRepository, InfolocalRepository, VentaRepository, ZapatoRepository} from '../repositories';
 import {ImpresoraService} from '../services';
 
@@ -154,6 +154,76 @@ export class VentaController {
     return {fecha: soloFecha, cantidad};
   }
 
+  @get('/venta/resumen-dia/fecha/{fecha}')
+  @response(200, {
+    description: 'Resumen de ventas por fecha y por zapato',
+    content: {
+      'application/json': {
+        schema: {
+          type: 'array',
+          items: getModelSchemaRef(ResumenDelDiaVentas),
+        },
+      },
+    },
+  })
+  async resumenVentasDelDia(
+    @param.path.string('fecha') fecha: string,
+  ): Promise<ResumenDelDiaVentas[]> {
+    const soloFecha = fecha.slice(0, 10);
+
+    const facturasDelDia = await this.facturaRepository.find({
+      where: {
+        Fecha: {
+          like: `${soloFecha}%`,
+        },
+      },
+      fields: {
+        id: true,
+      },
+    });
+
+    const facturaIds = facturasDelDia
+      .map(factura => factura.id)
+      .filter((id): id is number => typeof id === 'number');
+
+    if (facturaIds.length === 0) {
+      return [];
+    }
+
+    const ventasDelDia = await this.ventaRepository.find({
+      where: {
+        facturaId: {
+          inq: facturaIds,
+        },
+      },
+      include: [{relation: 'zapato'}],
+    }) as Array<Venta & {zapato?: {Descripcion?: string}}>;
+
+    const resumenPorZapato = new Map<string, {
+      descripcion: string;
+      cantidad: number;
+      valor: number;
+    }>();
+
+    for (const venta of ventasDelDia) {
+      const descripcion = venta.zapato?.Descripcion ?? 'Sin descripcion';
+      const clave = venta.zapatoId;
+
+      const acumulado = resumenPorZapato.get(clave) ?? {
+        descripcion,
+        cantidad: 0,
+        valor: 0,
+      };
+
+      acumulado.cantidad += venta.Cantidad;
+      acumulado.valor += venta.Cantidad * venta.Precio;
+
+      resumenPorZapato.set(clave, acumulado);
+    }
+
+    return Array.from(resumenPorZapato.values()).map(item => new ResumenDelDiaVentas(item));
+  }
+
   @get('/venta')
   @response(200, {
     description: 'Array of Venta model instances',
@@ -243,4 +313,5 @@ export class VentaController {
   async deleteById(@param.path.number('id') id: number): Promise<void> {
     await this.ventaRepository.deleteById(id);
   }
+
 }
