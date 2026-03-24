@@ -45,6 +45,8 @@ export class FacturaController {
     factura: Omit<Factura, 'id'>,
   ): Promise<Factura> {
     factura.Fecha = new Date().toLocaleString('sv-SE', {timeZone: 'America/Bogota'});
+    // El total de factura se calcula desde las ventas asociadas.
+    factura.Total = 0;
     return this.facturaRepository.create(factura);
   }
 

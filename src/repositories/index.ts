@@ -24,3 +24,4 @@ export * from './zapato.repository';
 export * from './almacen.repository';
 export * from './cierre-caja-metodo-pago.repository';
 
+export * from './pago-factura.repository';

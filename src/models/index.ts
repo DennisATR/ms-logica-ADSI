@@ -34,3 +34,4 @@ export * from './zapatoUnidad.model';
 export * from './almacen.model';
 export * from './cierre-caja-metodo-pago.model';
 
+export * from './pago-factura.model';

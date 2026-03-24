@@ -71,12 +71,21 @@ export class VentaController {
       throw new Error('No se encontró un registro válido en Infolocal');
     }
 
-    // Actualizar el total de la factura
-    const factura = await this.facturaRepository.findById(venta.facturaId);
-    const nuevoTotal = factura.Total + venta.Cantidad * venta.Precio;
-    await this.facturaRepository.updateById(factura.id, {Total: nuevoTotal});
     // Crear la venta
     const nuevaVenta = await this.ventaRepository.create(venta);
+
+    // Recalcular el total real de la factura basado en sus ventas.
+    const ventasFactura = await this.ventaRepository.find({
+      where: {facturaId: venta.facturaId},
+      fields: {Cantidad: true, Precio: true},
+    });
+
+    const nuevoTotal = ventasFactura.reduce(
+      (acumulado, ventaFactura) => acumulado + (ventaFactura.Cantidad * ventaFactura.Precio),
+      0,
+    );
+
+    await this.facturaRepository.updateById(venta.facturaId, {Total: nuevoTotal});
 
     this.impresoraService.printFactura({id: venta.facturaId}).catch(err => {
       console.error('Error al imprimir factura:', err);

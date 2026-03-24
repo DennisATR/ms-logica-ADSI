@@ -66,7 +66,7 @@ export class ImpresoraService {
   // ===== FACTURA =====
   private async buildFacturaBuffer(facturaId: number): Promise<Buffer> {
     const factura = await this.facturaRepository.findById(facturaId, {
-      include: [{relation: 'cliente'}, {relation: 'vendedor'}, {relation: 'metodoPago'}],
+      include: [{relation: 'cliente'}, {relation: 'vendedor'}, {relation: 'pagoFacturas', scope: {include: [{relation: 'metodoPago'}]}}],
     }) as any;
 
     const ventas = await this.ventaRepository.find({
@@ -96,14 +96,29 @@ export class ImpresoraService {
     );
 
     // ===== INFO FACTURA =====
+    const pagos = factura.pagoFacturas ?? [];
+    const abono = pagos.reduce((acc: number, pago: any) => acc + (pago.Monto ?? 0), 0);
+
     buffers.push(
       Buffer.from(`Factura #: ${factura.id}\n`),
       Buffer.from(`Fecha: ${this.formatDate(factura.Fecha)}\n`),
       Buffer.from(`Cliente: ${(factura as any).cliente?.Nombre ?? 'Consumidor Final'}\n`),
       Buffer.from(`Vendedor: ${factura.vendedor?.Nombre ?? 'N/A'}\n`),
-      Buffer.from(`Pago: ${factura.metodoPago?.Nombre ?? 'N/A'}\n`),
       LINE,
     );
+
+    if (pagos.length === 0) {
+      buffers.push(Buffer.from('Pagos: Sin registros\n'));
+    } else {
+      buffers.push(Buffer.from('Pagos:\n'));
+      pagos.forEach((pago: any) => {
+        buffers.push(
+          Buffer.from(`- ${pago.metodoPago?.Nombre ?? 'N/A'}: ${this.money(pago.Monto ?? 0)}\n`),
+        );
+      });
+    }
+
+    buffers.push(LINE);
 
     // ===== DETALLE =====
     buffers.push(BOLD_ON, Buffer.from('DETALLE\n'), BOLD_OFF);
@@ -127,8 +142,8 @@ export class ImpresoraService {
       BOLD_ON,
       Buffer.from(`TOTAL: ${this.money(factura.Total)}\n`),
       BOLD_OFF,
-      Buffer.from(`ABONO: ${this.money(factura.Abono ?? 0)}\n`),
-      Buffer.from(`SALDO: ${this.money(factura.Total - (factura.Abono ?? 0))}\n`),
+      Buffer.from(`ABONO: ${this.money(abono)}\n`),
+      Buffer.from(`SALDO: ${this.money(factura.Total - abono)}\n`),
       LINE,
     );
 

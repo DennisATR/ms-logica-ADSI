@@ -21,16 +21,16 @@ import {CierreCaja, EfectivoEnCaja} from '../models';
 import {
   CierreCajaRepository,
   EntregaRepository,
-  FacturaRepository,
   GastosRepository,
+  PagoFacturaRepository,
 } from '../repositories';
 
 export class CierreCajaController {
   constructor(
     @repository(CierreCajaRepository)
     public cierreCajaRepository: CierreCajaRepository,
-    @repository(FacturaRepository)
-    public facturaRepository: FacturaRepository,
+    @repository(PagoFacturaRepository)
+    public pagoFacturaRepository: PagoFacturaRepository,
     @repository(GastosRepository)
     public gastosRepository: GastosRepository,
     @repository(EntregaRepository)
@@ -103,13 +103,13 @@ export class CierreCajaController {
   ): Promise<EfectivoEnCaja> {
     const soloFecha = fecha.slice(0, 10);
 
-    const facturasEfectivoDelDia = await this.facturaRepository.find({
+    const pagosEfectivoDelDia = await this.pagoFacturaRepository.find({
       where: {
         Fecha: {like: `${soloFecha}%`},
         metodoPagoId: 1,
       },
       fields: {
-        Total: true,
+        Monto: true,
       },
     });
 
@@ -141,8 +141,8 @@ export class CierreCajaController {
       },
     });
 
-    const ventasEfectivo = facturasEfectivoDelDia.reduce(
-      (acumulado, factura) => acumulado + (factura.Total ?? 0),
+    const ventasEfectivo = pagosEfectivoDelDia.reduce(
+      (acumulado, pago) => acumulado + (pago.Monto ?? 0),
       0,
     );
 

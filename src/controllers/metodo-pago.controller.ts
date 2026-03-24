@@ -17,15 +17,15 @@ import {
   requestBody,
   response,
 } from '@loopback/rest';
-import {MetodoPago, ResumenDelDiaMetodoPago} from '../models';
-import {FacturaRepository, MetodoPagoRepository} from '../repositories';
+import {MetodoPago, PagoFacturaWithRelations, ResumenDelDiaMetodoPago} from '../models';
+import {MetodoPagoRepository, PagoFacturaRepository} from '../repositories';
 
 export class MetodoPagoController {
   constructor(
     @repository(MetodoPagoRepository)
     public metodoPagoRepository: MetodoPagoRepository,
-    @repository(FacturaRepository)
-    public facturaRepository: FacturaRepository,
+    @repository(PagoFacturaRepository)
+    public pagoFacturaRepository: PagoFacturaRepository,
   ) { }
 
   @post('/metodo-pago')
@@ -77,16 +77,16 @@ export class MetodoPagoController {
   ): Promise<ResumenDelDiaMetodoPago[]> {
     const soloFecha = fecha.slice(0, 10);
 
-    const facturasDelDia = await this.facturaRepository.find({
+    const pagosDelDia = await this.pagoFacturaRepository.find({
       where: {
         Fecha: {
           like: `${soloFecha}%`,
         },
       },
       include: [{relation: 'metodoPago'}],
-    }) as Array<any>;
+    }) as Array<PagoFacturaWithRelations & {metodoPago?: MetodoPago}>;
 
-    if (facturasDelDia.length === 0) {
+    if (pagosDelDia.length === 0) {
       return [];
     }
 
@@ -95,16 +95,16 @@ export class MetodoPagoController {
       valor: number;
     }>();
 
-    for (const factura of facturasDelDia) {
-      const clave = factura.metodoPagoId;
-      const nombre = factura.metodoPago?.Nombre ?? 'Sin método de pago';
+    for (const pago of pagosDelDia) {
+      const clave = pago.metodoPagoId;
+      const nombre = pago.metodoPago?.Nombre ?? 'Sin método de pago';
 
       const acumulado = resumenPorMetodoPago.get(clave) ?? {
         nombre,
         valor: 0,
       };
 
-      acumulado.valor += factura.Total;
+      acumulado.valor += pago.Monto ?? 0;
 
       resumenPorMetodoPago.set(clave, acumulado);
     }

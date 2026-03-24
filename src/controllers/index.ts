@@ -10,7 +10,6 @@ export * from './devolucion.controller';
 export * from './entrega.controller';
 export * from './factura-cliente.controller';
 export * from './factura-credito.controller';
-export * from './factura-metodo-pago.controller';
 export * from './factura-vendedor.controller';
 export * from './factura-zapato.controller';
 export * from './factura.controller';
@@ -22,7 +21,6 @@ export * from './menu-del-rol.controller';
 export * from './menu-rol.controller';
 export * from './menu.controller';
 export * from './mermas.controller';
-export * from './metodo-pago-factura.controller';
 export * from './metodo-pago.controller';
 export * from './pago-vendedor.controller';
 export * from './pago.controller';
@@ -60,4 +58,10 @@ export * from './venta-almacen.controller';
 export * from './venta-factura.controller';
 export * from './venta-zapato.controller';
 export * from './zapato-venta.controller';
+
+export * from './factura-pago-factura.controller';
+export * from './metodo-pago-pago-factura.controller';
+export * from './pago-factura-factura.controller';
+export * from './pago-factura-metodo-pago.controller';
+export * from './pago-factura.controller';
 

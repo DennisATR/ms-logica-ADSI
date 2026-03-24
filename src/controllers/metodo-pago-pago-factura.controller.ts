@@ -17,22 +17,22 @@ import {
 } from '@loopback/rest';
 import {
   MetodoPago,
-  Factura,
+  PagoFactura,
 } from '../models';
 import {MetodoPagoRepository} from '../repositories';
 
-export class MetodoPagoFacturaController {
+export class MetodoPagoPagoFacturaController {
   constructor(
     @repository(MetodoPagoRepository) protected metodoPagoRepository: MetodoPagoRepository,
   ) { }
 
-  @get('/metodo-pagos/{id}/facturas', {
+  @get('/metodo-pagos/{id}/pago-facturas', {
     responses: {
       '200': {
-        description: 'Array of MetodoPago has many Factura',
+        description: 'Array of MetodoPago has many PagoFactura',
         content: {
           'application/json': {
-            schema: {type: 'array', items: getModelSchemaRef(Factura)},
+            schema: {type: 'array', items: getModelSchemaRef(PagoFactura)},
           },
         },
       },
@@ -40,16 +40,16 @@ export class MetodoPagoFacturaController {
   })
   async find(
     @param.path.number('id') id: number,
-    @param.query.object('filter') filter?: Filter<Factura>,
-  ): Promise<Factura[]> {
-    return this.metodoPagoRepository.facturas(id).find(filter);
+    @param.query.object('filter') filter?: Filter<PagoFactura>,
+  ): Promise<PagoFactura[]> {
+    return this.metodoPagoRepository.pagoFacturas(id).find(filter);
   }
 
-  @post('/metodo-pagos/{id}/facturas', {
+  @post('/metodo-pagos/{id}/pago-facturas', {
     responses: {
       '200': {
         description: 'MetodoPago model instance',
-        content: {'application/json': {schema: getModelSchemaRef(Factura)}},
+        content: {'application/json': {schema: getModelSchemaRef(PagoFactura)}},
       },
     },
   })
@@ -58,22 +58,22 @@ export class MetodoPagoFacturaController {
     @requestBody({
       content: {
         'application/json': {
-          schema: getModelSchemaRef(Factura, {
-            title: 'NewFacturaInMetodoPago',
+          schema: getModelSchemaRef(PagoFactura, {
+            title: 'NewPagoFacturaInMetodoPago',
             exclude: ['id'],
             optional: ['metodoPagoId']
           }),
         },
       },
-    }) factura: Omit<Factura, 'id'>,
-  ): Promise<Factura> {
-    return this.metodoPagoRepository.facturas(id).create(factura);
+    }) pagoFactura: Omit<PagoFactura, 'id'>,
+  ): Promise<PagoFactura> {
+    return this.metodoPagoRepository.pagoFacturas(id).create(pagoFactura);
   }
 
-  @patch('/metodo-pagos/{id}/facturas', {
+  @patch('/metodo-pagos/{id}/pago-facturas', {
     responses: {
       '200': {
-        description: 'MetodoPago.Factura PATCH success count',
+        description: 'MetodoPago.PagoFactura PATCH success count',
         content: {'application/json': {schema: CountSchema}},
       },
     },
@@ -83,28 +83,28 @@ export class MetodoPagoFacturaController {
     @requestBody({
       content: {
         'application/json': {
-          schema: getModelSchemaRef(Factura, {partial: true}),
+          schema: getModelSchemaRef(PagoFactura, {partial: true}),
         },
       },
     })
-    factura: Partial<Factura>,
-    @param.query.object('where', getWhereSchemaFor(Factura)) where?: Where<Factura>,
+    pagoFactura: Partial<PagoFactura>,
+    @param.query.object('where', getWhereSchemaFor(PagoFactura)) where?: Where<PagoFactura>,
   ): Promise<Count> {
-    return this.metodoPagoRepository.facturas(id).patch(factura, where);
+    return this.metodoPagoRepository.pagoFacturas(id).patch(pagoFactura, where);
   }
 
-  @del('/metodo-pagos/{id}/facturas', {
+  @del('/metodo-pagos/{id}/pago-facturas', {
     responses: {
       '200': {
-        description: 'MetodoPago.Factura DELETE success count',
+        description: 'MetodoPago.PagoFactura DELETE success count',
         content: {'application/json': {schema: CountSchema}},
       },
     },
   })
   async delete(
     @param.path.number('id') id: number,
-    @param.query.object('where', getWhereSchemaFor(Factura)) where?: Where<Factura>,
+    @param.query.object('where', getWhereSchemaFor(PagoFactura)) where?: Where<PagoFactura>,
   ): Promise<Count> {
-    return this.metodoPagoRepository.facturas(id).delete(where);
+    return this.metodoPagoRepository.pagoFacturas(id).delete(where);
   }
 }

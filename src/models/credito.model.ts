@@ -25,16 +25,13 @@ export class Credito extends Entity {
   id?: number;
 
   @property({
-    type: 'number',
+    type: 'string',
     required: true,
+    mysql: {
+      dataType: 'datetime',
+    },
   })
-  Abono: number;
-
-  @property({
-    type: 'number',
-    required: true,
-  })
-  Total: number;
+  FechaLimitePago: string;
 
   @property({
     type: 'boolean',

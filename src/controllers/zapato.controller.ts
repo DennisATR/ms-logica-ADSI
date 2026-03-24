@@ -256,13 +256,14 @@ export class ZapatoController {
         'application/json': {
           schema: getModelSchemaRef(ZapatoUnidad, {
             title: 'UpdateZapato',
+            exclude: ['Fecha'],
           }),
         },
       },
     })
     data: ZapatoUnidad,
   ): Promise<void> {
-    const {Descripcion, Categoria, Talla, Referencia, PrecioVentaMax, PrecioVentaMin, ...commonData} = data;
+    const {Descripcion, Categoria, Talla, Referencia, PrecioVentaMax, PrecioVentaMin, Fecha, ...commonData} = data;
 
     // Decodificar referencia en Base64
     let precioDecodificado: number;
@@ -277,6 +278,9 @@ export class ZapatoController {
       throw new HttpErrors.BadRequest('El precio de venta mínimo no puede ser mayor que el máximo.');
     }
 
+    const FechaRegistro = new Date().toLocaleString('sv-SE', {timeZone: 'America/Bogota'});
+
+
     // Construir objeto actualizado
     const zapatoActualizado: Partial<Zapato> = {
       id,
@@ -286,6 +290,7 @@ export class ZapatoController {
       PrecioCosto: precioDecodificado ?? 0,
       PrecioVentaMax: PrecioVentaMax,
       PrecioVentaMin: PrecioVentaMin,
+      Fecha: FechaRegistro,
       ...commonData,
     };
 

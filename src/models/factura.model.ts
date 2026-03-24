@@ -1,10 +1,10 @@
 import {belongsTo, Entity, hasMany, model, property} from '@loopback/repository';
 import {Cliente} from './cliente.model';
 import {Credito} from './credito.model';
-import {MetodoPago} from './metodo-pago.model';
 import {Vendedor} from './vendedor.model';
 import {Venta} from './venta.model';
 import {Zapato} from './zapato.model';
+import {PagoFactura} from './pago-factura.model';
 
 @model(
   {
@@ -44,12 +44,6 @@ export class Factura extends Entity {
   id?: number;
 
   @property({
-    type: 'number',
-    required: true,
-  })
-  Abono: number;
-
-  @property({
     type: 'string',
     required: true,
     mysql: {
@@ -69,9 +63,6 @@ export class Factura extends Entity {
   })
   Nota?: string;
 
-  @belongsTo(() => MetodoPago)
-  metodoPagoId: number;
-
   @hasMany(() => Zapato, {through: {model: () => Venta}})
   zapatos: Zapato[];
 
@@ -86,6 +77,9 @@ export class Factura extends Entity {
 
   @hasMany(() => Venta)
   ventas: Venta[];
+
+  @hasMany(() => PagoFactura)
+  pagoFacturas: PagoFactura[];
 
   constructor(data?: Partial<Factura>) {
     super(data);
