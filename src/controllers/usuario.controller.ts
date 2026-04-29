@@ -44,14 +44,15 @@ export class UsuarioController {
         'application/json': {
           schema: getModelSchemaRef(Usuario, {
             title: 'NewUsuario',
-            exclude: ['id'],
+            exclude: ['id', 'FechaReg'],
           }),
         },
       },
     })
     usuario: Omit<Usuario, 'id'>,
   ): Promise<Usuario> {
-    usuario.FechaReg = new Date().toISOString();
+    const fechaRegistro = new Date().toLocaleString('sv-SE', {timeZone: 'America/Bogota'});
+    usuario.FechaReg = fechaRegistro;
     // Verificar si ya existe un usuario con el mismo correo
     const existente = await this.usuarioRepository.findOne({
       where: {Correo: usuario.Correo},

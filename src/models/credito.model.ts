@@ -34,10 +34,10 @@ export class Credito extends Entity {
   FechaLimitePago: string;
 
   @property({
-    type: 'boolean',
+    type: 'string',
     required: true,
   })
-  Estado: boolean;
+  Estado: string;
 
   @belongsTo(() => Factura)
   facturaId: number;

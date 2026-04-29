@@ -1,7 +1,10 @@
+export * from './almacen.model';
 export * from './cambio-clave.model';
+export * from './cierre-caja-metodo-pago.model';
 export * from './cierre-caja.model';
 export * from './cliente.model';
 export * from './credenciales.model';
+export * from './credito-detalle.model';
 export * from './credito.model';
 export * from './cuenta.model';
 export * from './devolucion.model';
@@ -15,6 +18,7 @@ export * from './menu-del-rol.model';
 export * from './menu.model';
 export * from './mermas.model';
 export * from './metodo-pago.model';
+export * from './pago-factura.model';
 export * from './pago.model';
 export * from './pendiente.model';
 export * from './proveedor.model';
@@ -31,7 +35,3 @@ export * from './zapato.model';
 export * from './zapatoSerie.model';
 export * from './zapatoUnidad.model';
 
-export * from './almacen.model';
-export * from './cierre-caja-metodo-pago.model';
-
-export * from './pago-factura.model';
