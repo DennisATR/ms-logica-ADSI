@@ -1,14 +1,17 @@
 import { /* inject, */ BindingScope, injectable} from '@loopback/core';
 import {repository} from '@loopback/repository';
+import {ConfiguracionSeguridad} from '../config/seguridad.config';
 import {
   Credenciales,
   MenuDelRol,
   Usuario,
 } from '../models';
 import {
+  LoginRepository,
   MenuDelRolRepository,
   UsuarioRepository,
 } from '../repositories';
+const jwt = require('jsonwebtoken');
 const MD5 = require('crypto-js/MD5');
 
 @injectable({scope: BindingScope.TRANSIENT})
@@ -16,8 +19,11 @@ export class SeguridadUsuarioService {
   constructor(
     @repository(UsuarioRepository)
     public repositoryUsuario: UsuarioRepository,
+    @repository(LoginRepository)
+    public repositorioLogin: LoginRepository,
     @repository(MenuDelRolRepository)
     public repositoryRolMenu: MenuDelRolRepository,
+
   ) { }
 
   /**
@@ -41,11 +47,20 @@ export class SeguridadUsuarioService {
     return clave;
   }
 
+  crearToken(usuario: Usuario): string {
+    const datos = {
+      id: usuario.id,
+      name: `${usuario.Nombre} ${usuario.Apellido}`,
+      role: usuario.rolId,
+      email: usuario.Correo,
+    };
+    const token = jwt.sign(datos, ConfiguracionSeguridad.claveJWT, {expiresIn: '12h'});
+    return token;
+  }
 
-  ObtenerRolDesdeUsuario(request: any): number {
-    let usuario = request.user;
-    let idRol = usuario.rolId;
-    return idRol;
+  ObtenerRolDesdeToken(tk: string): number {
+    const obj: any = jwt.verify(tk, ConfiguracionSeguridad.claveJWT);
+    return Number(obj.role);
   }
 
   /**
@@ -56,28 +71,36 @@ export class SeguridadUsuarioService {
    * específicamente su dirección de correo electrónico y contraseña.
    * @returns una Promesa que se resuelve en un objeto Usuario o nula.
    */
-  async identificarUsuario(
-    credenciales: Credenciales,
-  ): Promise<Usuario | null> {
+  async identificarUsuario(credenciales: Credenciales): Promise<Usuario | null> {
+    // Cifrar la clave recibida para compararla con la almacenada
+    const claveCifrada = this.cifrarTexto(credenciales.clave);
     let usuario = await this.repositoryUsuario.findOne({
       where: {
         Correo: credenciales.correo,
-        Clave: credenciales.clave,
+        Clave: claveCifrada,
       },
     });
+    console.log(usuario);
     return usuario as Usuario;
   }
 
 
+  /**
+   * Retorna los permisos del rol incluyendo todas las acciones disponibles
+   * @param idRol id del rol a buscar y que está asociado al usuario
+   * @returns array de permisos con todos los menuId asociados al rol
+   */
   async ConsultarPermisosDeMenuPorUsuario(idRol: number): Promise<MenuDelRol[]> {
-    let menu: MenuDelRol[] = await this.repositoryRolMenu.find({
-      where: {
-        Listar: true,
-        rolId: idRol,
-      },
-    });
+    let menu: MenuDelRol[] = await this.repositoryRolMenu.find(
+      {
+        where: {
+          rolId: idRol
+        }
+      }
+    );
     return menu;
   }
+
 
   //necesito un metodo que dado un correo, me busque en la base de datos, si el correo esta en la base me muestre un error
   //si el correo no esta en la base me permita crear un usuario nuevo

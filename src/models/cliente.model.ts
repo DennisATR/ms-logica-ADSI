@@ -49,10 +49,7 @@ export class Cliente extends Entity {
   Telefono?: string;
 
   @property({
-    type: 'string',
-    mysql: {
-      dataType: 'datetime',
-    },
+    type: 'date',
   })
   FechaNac?: string;
 

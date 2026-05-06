@@ -1,3 +1,4 @@
+import {authenticate} from '@loopback/authentication';
 import {service} from '@loopback/core';
 import {
   Count,
@@ -34,6 +35,10 @@ export class UsuarioController {
   ) { }
 
   @post('/usuario')
+  @authenticate({
+    strategy: 'auth',
+    options: ['usuario', 'guardar'],
+  })
   @response(200, {
     description: 'Usuario model instance',
     content: {'application/json': {schema: getModelSchemaRef(Usuario)}},
@@ -73,6 +78,10 @@ export class UsuarioController {
   }
 
   @get('/usuario/count')
+  @authenticate({
+    strategy: 'auth',
+    options: ['usuario', 'listar'],
+  })
   @response(200, {
     description: 'Usuario model count',
     content: {'application/json': {schema: CountSchema}},
@@ -84,6 +93,10 @@ export class UsuarioController {
   }
 
   @get('/usuario')
+  @authenticate({
+    strategy: 'auth',
+    options: ['usuario', 'listar'],
+  })
   @response(200, {
     description: 'Array of Usuario model instances',
     content: {
@@ -102,6 +115,10 @@ export class UsuarioController {
   }
 
   @patch('/usuario')
+  @authenticate({
+    strategy: 'auth',
+    options: ['usuario', 'editar'],
+  })
   @response(200, {
     description: 'Usuario PATCH success count',
     content: {'application/json': {schema: CountSchema}},
@@ -121,6 +138,10 @@ export class UsuarioController {
   }
 
   @get('/usuario/{id}')
+  @authenticate({
+    strategy: 'auth',
+    options: ['usuario', 'listar'],
+  })
   @response(200, {
     description: 'Usuario model instance',
     content: {
@@ -137,6 +158,10 @@ export class UsuarioController {
   }
 
   @patch('/usuario/{id}')
+  @authenticate({
+    strategy: 'auth',
+    options: ['usuario', 'editar'],
+  })
   @response(204, {
     description: 'Usuario PATCH success',
   })
@@ -155,6 +180,10 @@ export class UsuarioController {
   }
 
   @put('/usuario/{id}')
+  @authenticate({
+    strategy: 'auth',
+    options: ['usuario', 'editar'],
+  })
   @response(204, {
     description: 'Usuario PUT success',
   })
@@ -180,6 +209,10 @@ export class UsuarioController {
   }
 
   @del('/usuario/{id}')
+  @authenticate({
+    strategy: 'auth',
+    options: ['usuario', 'eliminar'],
+  })
   @response(204, {
     description: 'Usuario DELETE success',
   })
@@ -202,18 +235,27 @@ export class UsuarioController {
     })
     credentials: Credenciales,
   ): Promise<object> {
-    let user = await this.seguridadUsuarioService.identificarUsuario(credentials);
+    const user = await this.seguridadUsuarioService.identificarUsuario(credentials);
     const fechaRegistro = new Date().toLocaleString('sv-SE', {timeZone: 'America/Bogota'});
     console.log(fechaRegistro);
     if (user) {
+      // Generar token y registrar el login con token
+      const token = this.seguridadUsuarioService.crearToken(user);
       let login: Login = new Login();
-      login.usuarioId = user.id!; // Este dato _id si o si va a llegar
+      login.usuarioId = user.id!; // Este dato id si o si va a llegar
       login.Fecha = fechaRegistro;
-      this.loginRepository.create(login);
-      return user;
+      login.Token = token;
+      await this.loginRepository.create(login);
+
+      // Obtener permisos del usuario basados en su rol
+      const menu = await this.seguridadUsuarioService.ConsultarPermisosDeMenuPorUsuario(user.rolId!);
+
+      return {user, token, menu};
     }
-    return new HttpErrors[401]('Credenciales incorrectas. ');
+    throw new HttpErrors.Unauthorized('Credenciales incorrectas.');
   }
+
+
 
   /* El método `cambiarClave` es un endpoint POST que permite al usuario
 cambiar su contraseña. Se necesita un cuerpo de solicitud que contiene el
@@ -262,7 +304,7 @@ usuario, su contraseña actual y la contraseña nueva. */
       await this.seguridadUsuarioService.identificarUsuario(credenciales2);
 
     if (!usuarioAutenticado) {
-      throw new HttpErrors[401]('Contraseña actual incorrecta');
+      throw new HttpErrors.Unauthorized('Contraseña actual incorrecta');
     }
 
     // Asignar la contraseña nueva y actualizar el usuario.

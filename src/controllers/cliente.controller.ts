@@ -1,3 +1,4 @@
+import {authenticate} from '@loopback/authentication';
 import {
   Count,
   CountSchema,
@@ -28,6 +29,10 @@ export class ClienteController {
   ) { }
 
   @post('/cliente')
+  @authenticate({
+    strategy: 'auth',
+    options: ['cliente', 'guardar'],
+  })
   @response(200, {
     description: 'Cliente model instance',
     content: {'application/json': {schema: getModelSchemaRef(Cliente)}},
@@ -47,15 +52,25 @@ export class ClienteController {
   ): Promise<Cliente> {
     try {
       return await this.clienteRepository.create(cliente);
-    } catch (error: any) {
-      if (error.code === 'ER_DUP_ENTRY') {
+    } catch (error: unknown) {
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        (error as {code?: string}).code === 'ER_DUP_ENTRY'
+      ) {
         throw new HttpErrors.UnprocessableEntity('El cliente ya existe en la base de datos.');
       }
-      throw new HttpErrors.InternalServerError(`Error al crear el cliente: ${error.message}`);
+      const detalle = error instanceof Error ? error.message : 'Error desconocido';
+      throw new HttpErrors.InternalServerError(`Error al crear el cliente: ${detalle}`);
     }
   }
 
   @get('/cliente/count')
+  @authenticate({
+    strategy: 'auth',
+    options: ['cliente', 'listar'],
+  })
   @response(200, {
     description: 'Cliente model count',
     content: {'application/json': {schema: CountSchema}},
@@ -67,6 +82,10 @@ export class ClienteController {
   }
 
   @get('/cliente')
+  @authenticate({
+    strategy: 'auth',
+    options: ['cliente', 'listar'],
+  })
   @response(200, {
     description: 'Array of Cliente model instances',
     content: {
@@ -85,6 +104,10 @@ export class ClienteController {
   }
 
   @patch('/cliente')
+  @authenticate({
+    strategy: 'auth',
+    options: ['cliente', 'editar'],
+  })
   @response(200, {
     description: 'Cliente PATCH success count',
     content: {'application/json': {schema: CountSchema}},
@@ -104,6 +127,10 @@ export class ClienteController {
   }
 
   @get('/cliente/{id}')
+  @authenticate({
+    strategy: 'auth',
+    options: ['cliente', 'listar'],
+  })
   @response(200, {
     description: 'Cliente model instance',
     content: {
@@ -120,6 +147,10 @@ export class ClienteController {
   }
 
   @patch('/cliente/{id}')
+  @authenticate({
+    strategy: 'auth',
+    options: ['cliente', 'editar'],
+  })
   @response(204, {
     description: 'Cliente PATCH success',
   })
@@ -138,6 +169,10 @@ export class ClienteController {
   }
 
   @put('/cliente/{id}')
+  @authenticate({
+    strategy: 'auth',
+    options: ['cliente', 'editar'],
+  })
   @response(204, {
     description: 'Cliente PUT success',
   })
@@ -149,6 +184,10 @@ export class ClienteController {
   }
 
   @del('/cliente/{id}')
+  @authenticate({
+    strategy: 'auth',
+    options: ['cliente', 'eliminar'],
+  })
   @response(204, {
     description: 'Cliente DELETE success',
   })

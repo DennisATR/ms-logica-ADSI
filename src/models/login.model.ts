@@ -34,6 +34,12 @@ export class Login extends Entity {
   })
   Fecha: string;
 
+  @property({
+    type: 'string',
+    required: true,
+  })
+  Token: string;
+
   @belongsTo(() => Usuario)
   usuarioId: number;
 
