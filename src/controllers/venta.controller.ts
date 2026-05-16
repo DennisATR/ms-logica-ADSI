@@ -18,7 +18,7 @@ import {
   requestBody,
   response,
 } from '@loopback/rest';
-import {ResumenDelDiaVentas, Venta} from '../models';
+import {Devolucion, ResumenDelDiaVentas, Venta} from '../models';
 import {FacturaRepository, InfolocalRepository, VentaRepository, ZapatoRepository} from '../repositories';
 import {ImpresoraService} from '../services';
 
@@ -249,6 +249,67 @@ export class VentaController {
     @param.filter(Venta) filter?: Filter<Venta>,
   ): Promise<Venta[]> {
     return this.ventaRepository.find(filter);
+  }
+
+  @get('/venta/factura/{facturaId}')
+  @response(200, {
+    description: 'Array of Venta model instances',
+    content: {
+      'application/json': {
+        schema: {
+          type: 'array',
+          items: getModelSchemaRef(Venta, {includeRelations: true}),
+        },
+      },
+    },
+  })
+  async findVendasByFacturaId(
+    @param.path.number('facturaId') facturaId: number,
+  ): Promise<Venta[]> {
+    return this.ventaRepository.find({
+      where: {
+        facturaId,
+      },
+      include: [{relation: 'zapato'}],
+    });
+  }
+
+  @get('/venta/factura/{facturaId}/devoluciones-elegibles')
+  @response(200, {
+    description: 'Ventas elegibles para devolución por factura',
+    content: {
+      'application/json': {
+        schema: {
+          type: 'array',
+          items: getModelSchemaRef(Venta, {includeRelations: true}),
+        },
+      },
+    },
+  })
+  async findVendasEligibleForDevolucionByFacturaId(
+    @param.path.number('facturaId') facturaId: number,
+  ): Promise<Venta[]> {
+    const ventas = await this.ventaRepository.find({
+      where: {facturaId},
+      include: [
+        {relation: 'devolucions'},
+        {relation: 'zapato'},
+      ],
+    }) as Array<Venta & {devolucions?: Array<Partial<Devolucion>>}>;
+
+    const elegibles = ventas
+      .filter(venta => {
+        const totalDevolucion = (venta.devolucions ?? []).reduce((acum, d) => acum + (d.Cantidad ?? 0), 0);
+        return (venta.Cantidad - totalDevolucion) > 0;
+      })
+      .map(venta => {
+        const totalDevolucion = (venta.devolucions ?? []).reduce((acum, d) => acum + (d.Cantidad ?? 0), 0);
+        const cantidadDisponible = venta.Cantidad - totalDevolucion;
+        venta.Cantidad = cantidadDisponible;
+        return venta;
+      });
+
+    return elegibles;
   }
 
   @patch('/venta')

@@ -10,6 +10,7 @@ import {
   del,
   get,
   getModelSchemaRef,
+  HttpErrors,
   param,
   patch,
   post,
@@ -18,13 +19,15 @@ import {
   response,
 } from '@loopback/rest';
 import {Devolucion} from '../models';
-import {DevolucionRepository} from '../repositories';
+import {DevolucionRepository, VentaRepository} from '../repositories';
 
 export class DevolucionController {
   constructor(
     @repository(DevolucionRepository)
-    public devolucionRepository : DevolucionRepository,
-  ) {}
+    public devolucionRepository: DevolucionRepository,
+    @repository(VentaRepository)
+    public ventaRepository: VentaRepository,
+  ) { }
 
   @post('/devolucion')
   @response(200, {
@@ -37,14 +40,39 @@ export class DevolucionController {
         'application/json': {
           schema: getModelSchemaRef(Devolucion, {
             title: 'NewDevolucion',
-            exclude: ['id'],
+            exclude: ['id', 'Fecha'],
           }),
         },
       },
     })
     devolucion: Omit<Devolucion, 'id'>,
   ): Promise<Devolucion> {
-    // devolucion o cambio
+    // Validar existencia de venta
+    const ventaId = (devolucion as any).ventaId;
+    if (!ventaId) {
+      throw new HttpErrors.BadRequest('Se requiere ventaId para crear la devolución');
+    }
+
+    const venta = await this.ventaRepository.findById(ventaId).catch(() => null);
+    if (!venta) {
+      throw new HttpErrors.NotFound('Venta no encontrada');
+    }
+
+    // Validar cantidad solicitada
+    if (!devolucion.Cantidad || devolucion.Cantidad <= 0) {
+      throw new HttpErrors.BadRequest('Cantidad de devolución inválida');
+    }
+
+    // Sumar devoluciones existentes para la venta
+    const devolucionesPrevias = await this.devolucionRepository.find({where: {ventaId: ventaId}, fields: {Cantidad: true}});
+    const totalDevPrevio = devolucionesPrevias.reduce((s, d) => s + (d.Cantidad || 0), 0);
+
+    if (totalDevPrevio + devolucion.Cantidad > venta.Cantidad) {
+      throw new HttpErrors.BadRequest('La suma de las devoluciones excede la cantidad de la venta');
+    }
+
+    const fechaRegistro = new Date().toLocaleString('sv-SE', {timeZone: 'America/Bogota'});
+    devolucion.Fecha = fechaRegistro;
     return this.devolucionRepository.create(devolucion);
   }
 

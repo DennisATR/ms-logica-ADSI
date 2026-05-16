@@ -13,8 +13,6 @@ export class AuthService {
     private repositorioMenu: MenuRepository
   ) { }
 
-  // Mantiene el nombre legado para compatibilidad con los controladores existentes.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   async VerificarPermisoDeUsuarioPorRol(
     idRol: number,
     menuRef: number | string,

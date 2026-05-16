@@ -43,6 +43,12 @@ export class Devolucion extends Entity {
   })
   Fecha: string;
 
+  @property({
+    type: 'number',
+    required: true,
+  })
+  Cantidad: number;
+
   @belongsTo(() => Venta)
   ventaId: number;
 
