@@ -18,14 +18,12 @@ import {
   response,
 } from '@loopback/rest';
 import {Login} from '../models';
-import {CierreCajaRepository, LoginRepository} from '../repositories';
+import {LoginRepository} from '../repositories';
 
 export class LoginController {
   constructor(
     @repository(LoginRepository)
     public loginRepository: LoginRepository,
-    @repository(CierreCajaRepository)
-    public cierreCajaRepository: CierreCajaRepository,
   ) { }
 
   @post('/login')

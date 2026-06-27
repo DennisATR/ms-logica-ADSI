@@ -1,0 +1,14 @@
+{
+  "name": "agente-impresion-local",
+  "version": "1.0.0",
+  "description": "Agente local para recibir comandos ESC/POS y enviarlos a la impresora USB",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "usb": "^2.11.0"
+  }
+}

@@ -1,4 +1,4 @@
-import {Entity, model, property, belongsTo} from '@loopback/repository';
+import {belongsTo, Entity, model, property} from '@loopback/repository';
 import {Factura} from './factura.model';
 import {MetodoPago} from './metodo-pago.model';
 
@@ -25,6 +25,16 @@ export class PagoFactura extends Entity {
     },
   })
   Fecha: string;
+
+  @property({
+    type: 'number',
+  })
+  MontoRecibido?: number;
+
+  @property({
+    type: 'number',
+  })
+  Cambio?: number;
 
   @belongsTo(() => Factura)
   facturaId: number;

@@ -20,6 +20,7 @@ const BOLD_OFF = Buffer.from([0x1B, 0x45, 0x00]);
 const DOUBLE_SIZE = Buffer.from([0x1D, 0x21, 0x11]);
 const NORMAL_SIZE = Buffer.from([0x1D, 0x21, 0x00]);
 const CUT = Buffer.from([0x1D, 0x56, 0x41, 0x10]);
+const CASH_DRAWER = Buffer.from([0x1B, 0x70, 0x00, 0x19, 0xFA]);
 const LINE = Buffer.from('--------------------------------\n');
 
 @injectable()
@@ -64,7 +65,7 @@ export class ImpresoraService {
   }
 
   // ===== FACTURA =====
-  private async buildFacturaBuffer(facturaId: number): Promise<Buffer> {
+  public async buildFacturaBuffer(facturaId: number): Promise<Buffer> {
     const factura = await this.facturaRepository.findById(facturaId, {
       include: [{relation: 'cliente'}, {relation: 'vendedor'}, {relation: 'pagoFacturas', scope: {include: [{relation: 'metodoPago'}]}}],
     }) as any;
@@ -90,6 +91,7 @@ export class ImpresoraService {
       BOLD_OFF,
       NORMAL_SIZE,
       Buffer.from(`NIT: ${local?.NIT ?? 'N/A'}\n`),
+      Buffer.from(`Dir: ${local?.Direccion ?? 'N/A'}\n`),
       Buffer.from(`Tel: ${local?.Telefono ?? 'N/A'}\n`),
       LINE,
       LEFT,
@@ -156,6 +158,7 @@ export class ImpresoraService {
       Buffer.from('Desarrollado por ADSI\n'),
       Buffer.from('adsi.notificaciones@gmail.com\n'),
       CUT,
+      CASH_DRAWER,
     );
 
     return Buffer.concat(buffers as Uint8Array[]);
@@ -172,10 +175,12 @@ export class ImpresoraService {
 
   private formatDate(d: any): string {
     const date = new Date(d);
-    return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')
-      }/${date.getFullYear()} ${date
-        .getHours()
-        .toString()
-        .padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+    // Usar métodos UTC para mostrar la fecha exacta de la BD sin conversión de zona horaria
+    const dia = date.getUTCDate().toString().padStart(2, '0');
+    const mes = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+    const anio = date.getUTCFullYear();
+    const hora = date.getUTCHours().toString().padStart(2, '0');
+    const minutos = date.getUTCMinutes().toString().padStart(2, '0');
+    return `${dia}/${mes}/${anio} ${hora}:${minutos}`;
   }
 }

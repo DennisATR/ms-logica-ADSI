@@ -17,13 +17,17 @@ import {
   requestBody,
   response,
 } from '@loopback/rest';
+import {service} from '@loopback/core';
 import {Factura} from '../models';
 import {FacturaRepository} from '../repositories';
+import {ImpresoraService} from '../services';
 
 export class FacturaController {
   constructor(
     @repository(FacturaRepository)
     public facturaRepository: FacturaRepository,
+    @service(ImpresoraService)
+    public impresoraService: ImpresoraService,
   ) { }
 
   @post('/factura')
@@ -149,5 +153,26 @@ export class FacturaController {
   })
   async deleteById(@param.path.number('id') id: number): Promise<void> {
     await this.facturaRepository.deleteById(id);
+  }
+
+  @get('/factura/{id}/imprimir')
+  @response(200, {
+    description: 'Factura ESC/POS Buffer Base64',
+    content: {
+      'application/json': {
+        schema: {
+          type: 'object',
+          properties: {
+            buffer: {type: 'string'},
+          },
+        },
+      },
+    },
+  })
+  async getBufferImpresion(
+    @param.path.number('id') id: number,
+  ): Promise<{buffer: string}> {
+    const buffer = await this.impresoraService.buildFacturaBuffer(id);
+    return {buffer: buffer.toString('base64')};
   }
 }

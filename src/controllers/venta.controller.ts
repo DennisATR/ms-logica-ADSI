@@ -53,6 +53,7 @@ export class VentaController {
       },
     })
     venta: Omit<Venta, 'id'>,
+    @param.query.string('lugarImpresion') lugarImpresion?: string,
   ): Promise<Venta> {
     // Obtener el zapato correspondiente
     const zapato = await this.zapatoRepository.findById(venta.zapatoId);
@@ -87,9 +88,11 @@ export class VentaController {
 
     await this.facturaRepository.updateById(venta.facturaId, {Total: nuevoTotal});
 
-    this.impresoraService.printFactura({id: venta.facturaId}).catch(err => {
-      console.error('Error al imprimir factura:', err);
-    });
+    if (lugarImpresion !== 'cliente') {
+      this.impresoraService.printFactura({id: venta.facturaId}).catch(err => {
+        console.error('Error al imprimir factura:', err);
+      });
+    }
 
     return nuevaVenta;
   }

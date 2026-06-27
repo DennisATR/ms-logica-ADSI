@@ -21,14 +21,14 @@ import {
 } from '@loopback/rest';
 import {Zapato, ZapatoSerie, ZapatoUnidad} from '../models';
 import {AlmacenRepository, InfolocalRepository, ZapatoRepository} from '../repositories';
-import {StickerService} from '../services';
+import {StikerService} from '../services';
 
 export class ZapatoController {
   constructor(
     @repository(ZapatoRepository)
     public zapatoRepository: ZapatoRepository,
-    @service(StickerService)
-    public stickerService: StickerService,
+    @service(StikerService)
+    public stikerService: StikerService,
     @repository(AlmacenRepository)
     public almacenRepository: AlmacenRepository,
     @repository(InfolocalRepository)
@@ -132,7 +132,14 @@ export class ZapatoController {
       };
     }
     // Crear el zapato con el ID generado o proporcionado
-    return this.zapatoRepository.create(zapatoConId)
+    const nuevoZapato = await this.zapatoRepository.create(zapatoConId);
+
+    // Imprimir el sticker automáticamente
+    this.stikerService.printStiker(nuevoZapato.id ?? '').catch(err => {
+      console.error('Error al imprimir sticker:', err.message);
+    });
+
+    return nuevoZapato;
   }
 
   @get('/zapato/count')
