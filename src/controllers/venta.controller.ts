@@ -88,12 +88,6 @@ export class VentaController {
 
     await this.facturaRepository.updateById(venta.facturaId, {Total: nuevoTotal});
 
-    if (lugarImpresion !== 'cliente') {
-      this.impresoraService.printFactura({id: venta.facturaId}).catch(err => {
-        console.error('Error al imprimir factura:', err);
-      });
-    }
-
     return nuevaVenta;
   }
 

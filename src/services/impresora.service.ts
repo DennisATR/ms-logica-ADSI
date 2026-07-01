@@ -140,14 +140,40 @@ export class ImpresoraService {
     buffers.push(LINE);
 
     // ===== TOTALES =====
-    buffers.push(
-      BOLD_ON,
-      Buffer.from(`TOTAL: ${this.money(factura.Total)}\n`),
-      BOLD_OFF,
-      Buffer.from(`ABONO: ${this.money(abono)}\n`),
-      Buffer.from(`SALDO: ${this.money(factura.Total - abono)}\n`),
-      LINE,
-    );
+    const metodoPagoNombre = (pagos[0]?.metodoPago?.Nombre ?? '').toLowerCase();
+    const esCredito = metodoPagoNombre.includes('credito') || metodoPagoNombre.includes('crédito');
+
+    buffers.push(BOLD_ON, Buffer.from(`TOTAL: ${this.money(factura.Total)}\n`), BOLD_OFF);
+
+    if (esCredito) {
+      // Crédito: abono acumulado, saldo pendiente + lo recibido/cambio de este pago
+      buffers.push(
+        Buffer.from(`ABONO:    ${this.money(abono)}\n`),
+        Buffer.from(`SALDO:    ${this.money(factura.Total - abono)}\n`),
+      );
+      const primerPago = pagos[0];
+      if (primerPago && (primerPago.MontoRecibido ?? 0) > 0) {
+        buffers.push(
+          Buffer.from(`RECIBIDO: ${this.money(primerPago.MontoRecibido)}\n`),
+          Buffer.from(`CAMBIO:   ${this.money(primerPago.Cambio ?? 0)}\n`),
+        );
+      }
+    } else {
+      // Contado/Efectivo/Transferencia: solo recibido y cambio si aplica
+      const primerPago = pagos[0];
+      const montoRecibido = primerPago?.MontoRecibido ?? 0;
+      const cambio = primerPago?.Cambio ?? 0;
+      if (montoRecibido > 0) {
+        buffers.push(
+          Buffer.from(`RECIBIDO: ${this.money(montoRecibido)}\n`),
+          Buffer.from(`CAMBIO:   ${this.money(cambio)}\n`),
+        );
+      }
+    }
+
+    buffers.push(LINE);
+
+
 
     // ===== FOOTER =====
     buffers.push(

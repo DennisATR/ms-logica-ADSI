@@ -1,3 +1,4 @@
+import {service} from '@loopback/core';
 import {
   Count,
   CountSchema,
@@ -17,7 +18,6 @@ import {
   requestBody,
   response,
 } from '@loopback/rest';
-import {service} from '@loopback/core';
 import {Factura} from '../models';
 import {FacturaRepository} from '../repositories';
 import {ImpresoraService} from '../services';
@@ -174,5 +174,15 @@ export class FacturaController {
   ): Promise<{buffer: string}> {
     const buffer = await this.impresoraService.buildFacturaBuffer(id);
     return {buffer: buffer.toString('base64')};
+  }
+
+  @post('/factura/{id}/imprimir-servidor')
+  @response(204, {
+    description: 'Imprime la factura en la impresora del servidor',
+  })
+  async imprimirEnServidor(
+    @param.path.number('id') id: number,
+  ): Promise<void> {
+    await this.impresoraService.printFactura({id});
   }
 }

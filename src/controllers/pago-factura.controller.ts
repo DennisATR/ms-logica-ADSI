@@ -37,13 +37,14 @@ export class PagoFacturaController {
         'application/json': {
           schema: getModelSchemaRef(PagoFactura, {
             title: 'NewPagoFactura',
-            exclude: ['id', 'Fecha'],
+            exclude: ['id', 'Fecha', 'Cambio'],
           }),
         },
       },
     })
     pagoFactura: Omit<PagoFactura, 'id'>,
   ): Promise<PagoFactura> {
+    pagoFactura.Cambio = pagoFactura.MontoRecibido - pagoFactura.Monto;
     pagoFactura.Fecha = new Date().toLocaleString('sv-SE', {timeZone: 'America/Bogota'});
     return this.pagoFacturaRepository.create(pagoFactura);
   }

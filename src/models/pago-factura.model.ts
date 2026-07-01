@@ -28,13 +28,15 @@ export class PagoFactura extends Entity {
 
   @property({
     type: 'number',
+    required: true,
   })
-  MontoRecibido?: number;
+  MontoRecibido: number;
 
   @property({
     type: 'number',
+    required: true,
   })
-  Cambio?: number;
+  Cambio: number;
 
   @belongsTo(() => Factura)
   facturaId: number;

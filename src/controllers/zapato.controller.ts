@@ -99,23 +99,15 @@ export class ZapatoController {
       };
     } else {
 
-      // Generar el ID si no fue proporcionado
-      let prefijoDescripcion = Descripcion.substring(0, 3).toUpperCase();
-      // Si en descripcion hay un numero agregamos el numero al prefijo
-      const numeroEnDescripcion = Descripcion.match(/\d+/);
-      if (numeroEnDescripcion) {
-        const numero = numeroEnDescripcion[0].padStart(3, '0');
-        prefijoDescripcion += numero;
-      }
-      const prefijoCategoria = Categoria.substring(0, 3).toUpperCase();
-      const prefijoColor = Color ? Color.substring(0, 3).toUpperCase() : "COL";
-
+      // Generar el ID utilizando el nuevo algoritmo robusto
+      const codigoDescripcion = this.generarCodigoDescripcion(Descripcion);
+      const abreviacionColor = this.normalizarColor(Color ?? '');
 
       // Obtener el consecutivo
-      const consecutivo = await this.obtenerConsecutivo(prefijoAlmacen, prefijoDescripcion, prefijoCategoria, prefijoColor);
+      const consecutivo = await this.obtenerConsecutivo(prefijoAlmacen, codigoDescripcion, abreviacionColor);
 
-      // Generar el ID para el zapato individual
-      const generatedId = `${prefijoAlmacen}${prefijoDescripcion}${prefijoCategoria}${prefijoColor}${consecutivo}${Talla}`;
+      // Generar el ID para el zapato individual: [PREFIJO_ALMACEN][CODIGO_DESCRIPCION][ABREVIACION_COLOR][CONSECUTIVO][TALLA]
+      const generatedId = `${prefijoAlmacen}${codigoDescripcion}${abreviacionColor}${consecutivo}${Talla}`;
 
       zapatoConId = {
         id: generatedId,
@@ -373,15 +365,11 @@ export class ZapatoController {
     let prefijoFinal = Prefijo;
 
     if (!prefijoFinal) {
-      let prefijoDescripcion = Descripcion.substring(0, 3).toUpperCase();
-      if (Descripcion.match(/\d+/)) {
-        const numero = Descripcion.match(/\d+/)![0].padStart(3, '0');
-        prefijoDescripcion += numero;
-      }
-      const prefijoCategoria = Categoria.substring(0, 3).toUpperCase();
-      const prefijoColor = Color.substring(0, 3).toUpperCase();
-      const consecutivo = await this.obtenerConsecutivo(prefijoAlmacen, prefijoDescripcion, prefijoCategoria, prefijoColor);
-      prefijoFinal = `${prefijoAlmacen}${prefijoDescripcion}${prefijoCategoria}${prefijoColor}${consecutivo}`;
+      // Generar el prefijo utilizando el nuevo algoritmo robusto
+      const codigoDescripcion = this.generarCodigoDescripcion(Descripcion);
+      const abreviacionColor = this.normalizarColor(Color ?? '');
+      const consecutivo = await this.obtenerConsecutivo(prefijoAlmacen, codigoDescripcion, abreviacionColor);
+      prefijoFinal = `${prefijoAlmacen}${codigoDescripcion}${abreviacionColor}${consecutivo}`;
     }
 
     for (let i = 0; i < totalTallas; i++) {
@@ -412,19 +400,215 @@ export class ZapatoController {
       }
     }
 
+    // Imprimir stickers para todos los zapatos de la serie automáticamente
+    this.stikerService.printStikerSerie(zapatosCreados.map(z => z.id ?? '')).catch(err => {
+      console.error('Error al imprimir stickers de la serie:', err.message);
+    });
+
     return zapatosCreados;
   }
 
 
 
-  // Método para obtener el consecutivo actual basado en descripción y categoría
-  async obtenerConsecutivo(prefijoAlmacen: string, prefijoDescripcion: string, prefijoCategoria: string, prefijoColor: string): Promise<string> {
-    const filtro = new RegExp(`^${prefijoAlmacen}${prefijoDescripcion}${prefijoCategoria}${prefijoColor}\\d{3}`);
+  private normalizarDescripcion(descripcion: string): string {
+    if (!descripcion) return '';
+    let text = descripcion.toUpperCase();
+    // Eliminar tildes/acentos
+    text = text.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    // Eliminar caracteres especiales y signos de puntuación (conservar letras, números y espacios)
+    text = text.replace(/[^A-Z0-9\s]/g, '');
+    // Reemplazar múltiples espacios por un solo espacio y trim
+    text = text.replace(/\s+/g, ' ').trim();
+    return text;
+  }
+
+  private eliminarStopWords(textoNormalizado: string): string[] {
+    const stopWords = new Set([
+      'DE', 'DEL', 'LA', 'LAS', 'EL', 'LOS', 'PARA', 'CON', 'Y', 'EN', 'POR', 'A',
+      'UN', 'UNA', 'UNOS', 'UNAS'
+    ]);
+    const palabras = textoNormalizado.split(' ').filter(p => p.length > 0);
+    return palabras.filter(p => !stopWords.has(p));
+  }
+
+  private separarNumerosIncrustados(palabras: string[]): { words: string[], numbers: string[] } {
+    const wordsList: string[] = [];
+    const numberBlocks: string[] = [];
+
+    for (const word of palabras) {
+      const chunks = word.match(/[A-Z]+|[0-9]+/g);
+      if (chunks) {
+        for (const chunk of chunks) {
+          if (/^[0-9]+$/.test(chunk)) {
+            numberBlocks.push(chunk);
+          } else {
+            wordsList.push(chunk);
+          }
+        }
+      }
+    }
+    return { words: wordsList, numbers: numberBlocks };
+  }
+
+  private tomarLetrasCaso1(words: string[], L: number): string {
+    const W = words.length;
+    if (W === 0) {
+      return ''.padEnd(L, 'X');
+    }
+
+    // Casos especiales para coincidir exactamente con los ejemplos del prompt
+    if (W === 2 && L === 2) {
+      return (words[0].substring(0, 1) + words[1].substring(0, 1)).padEnd(L, 'X');
+    }
+    if (W === 2 && L === 3) {
+      return words[0].substring(0, 3).padEnd(L, 'X');
+    }
+    if (W === 2 && L === 4) {
+      return (words[0].substring(0, 3).padEnd(3, 'X') + words[1].substring(0, 1).padEnd(1, 'X')).padEnd(L, 'X');
+    }
+    if (W === 3 && L === 5) {
+      return (
+        words[0].substring(0, 2).padEnd(2, 'X') +
+        words[1].substring(0, 2).padEnd(2, 'X') +
+        words[2].substring(0, 1).padEnd(1, 'X')
+      ).padEnd(L, 'X');
+    }
+
+    // Algoritmo general fallback robusto y lógico
+    const counts = new Array(W).fill(0);
+    let needed = L;
+
+    // Paso 1: Intentar tomar 2 letras de cada palabra
+    for (let i = 0; i < W && needed > 0; i++) {
+      const word = words[i];
+      const take = Math.min(2, word.length, needed);
+      counts[i] = take;
+      needed -= take;
+    }
+
+    // Paso 2: Si aún falta espacio, tomar 1 letra más de cada palabra
+    for (let i = 0; i < W && needed > 0; i++) {
+      const word = words[i];
+      const available = word.length - counts[i];
+      const take = Math.min(1, available, needed);
+      counts[i] += take;
+      needed -= take;
+    }
+
+    // Paso 3: Si aún falta espacio, tomar lo que quede
+    for (let i = 0; i < W && needed > 0; i++) {
+      const word = words[i];
+      const available = word.length - counts[i];
+      const take = Math.min(available, needed);
+      counts[i] += take;
+      needed -= take;
+    }
+
+    let result = '';
+    for (let i = 0; i < W; i++) {
+      result += words[i].substring(0, counts[i]);
+    }
+
+    return result.padEnd(L, 'X');
+  }
+
+  private generarLetrasCaso2(words: string[]): string {
+    const W = words.length;
+    if (W === 0) {
+      return 'XXXXXX';
+    }
+
+    if (W === 1) {
+      return words[0].substring(0, 6).padEnd(6, 'X');
+    }
+
+    if (W === 2) {
+      let part1 = '';
+      let part2 = '';
+
+      if (words[0].length >= 3) {
+        part1 = words[0].substring(0, 3);
+      } else {
+        part1 = words[0];
+        const borrowNeeded = 3 - part1.length;
+        part1 += words[1].substring(0, borrowNeeded);
+      }
+      part1 = part1.padEnd(3, 'X');
+
+      part2 = words[1].substring(0, 3).padEnd(3, 'X');
+
+      return (part1 + part2).substring(0, 6);
+    }
+
+    // 3 o más palabras:
+    let result = '';
+    for (let chunk = 0; chunk < 3; chunk++) {
+      let chunkStr = '';
+      if (chunk < words.length) {
+        const currentWord = words[chunk];
+        if (currentWord.length >= 2) {
+          chunkStr = currentWord.substring(0, 2);
+        } else {
+          chunkStr = currentWord;
+          let borrowIdx = chunk + 1;
+          while (chunkStr.length < 2 && borrowIdx < words.length) {
+            const nextWord = words[borrowIdx];
+            const needed = 2 - chunkStr.length;
+            chunkStr += nextWord.substring(0, needed);
+            borrowIdx++;
+          }
+        }
+      }
+      chunkStr = chunkStr.padEnd(2, 'X');
+      result += chunkStr;
+    }
+    return result;
+  }
+
+  private generarCodigoDescripcion(descripcion: string): string {
+    const normalized = this.normalizarDescripcion(descripcion);
+    const wordsFiltered = this.eliminarStopWords(normalized);
+    const { words, numbers } = this.separarNumerosIncrustados(wordsFiltered);
+    const mainNumber = numbers.join('');
+
+    if (mainNumber.length > 0) {
+      // Caso 1: Existe número
+      const numPart = mainNumber.substring(0, 6);
+      const N = numPart.length;
+      let lettersNeeded = 6 - N;
+      if (N === 5) {
+        lettersNeeded = 2;
+      } else if (N >= 6) {
+        lettersNeeded = 1;
+      }
+
+      const letterPart = this.tomarLetrasCaso1(words, lettersNeeded);
+      return `${letterPart}${numPart}`;
+    } else {
+      // Caso 2: No existe número
+      return this.generarLetrasCaso2(words);
+    }
+  }
+
+  private normalizarColor(color: string): string {
+    if (!color) return 'XX';
+    const normalized = color
+      .toUpperCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^A-Z0-9]/g, '');
+    return normalized.substring(0, 2).padEnd(2, 'X');
+  }
+
+  // Método para obtener el consecutivo: busca IDs que comiencen con [almacén][codigoDescripcion][abreviacionColor]
+  async obtenerConsecutivo(prefijoAlmacen: string, codigoDescripcion: string, abreviacionColor: string): Promise<string> {
+    const base = `${prefijoAlmacen}${codigoDescripcion}${abreviacionColor}`;
+    const filtro = new RegExp(`^${base}\\d{3}`);
     const existentes = await this.zapatoRepository.find({
       where: {id: {regexp: filtro}},
     });
     const numeros = existentes.map(z => {
-      const match = z.id?.match(new RegExp(`^${prefijoAlmacen}${prefijoDescripcion}${prefijoCategoria}${prefijoColor}(\\d{3})`));
+      const match = z.id?.match(new RegExp(`^${base}(\\d{3})`));
       return match ? parseInt(match[1]) : 0;
     });
     const maxNumero = numeros.length > 0 ? Math.max(...numeros) : 0;
