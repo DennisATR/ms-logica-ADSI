@@ -17,6 +17,7 @@ import {
   requestBody,
   response,
 } from '@loopback/rest';
+import {service} from '@loopback/core';
 import {CierreCaja, EfectivoEnCaja} from '../models';
 import {
   CierreCajaRepository,
@@ -24,6 +25,7 @@ import {
   GastosRepository,
   PagoFacturaRepository,
 } from '../repositories';
+import {ImpresoraService} from '../services';
 
 export class CierreCajaController {
   constructor(
@@ -35,6 +37,8 @@ export class CierreCajaController {
     public gastosRepository: GastosRepository,
     @repository(EntregaRepository)
     public entregaRepository: EntregaRepository,
+    @service(ImpresoraService)
+    public impresoraService: ImpresoraService,
   ) { }
 
   @post('/cierre-caja')
@@ -252,6 +256,37 @@ export class CierreCajaController {
   })
   async deleteById(@param.path.number('id') id: number): Promise<void> {
     await this.cierreCajaRepository.deleteById(id);
+  }
+
+  // ===== IMPRESION =====
+
+  @get('/cierre-caja/{id}/imprimir')
+  @response(200, {
+    description: 'Buffer ESC/POS del cierre de caja en Base64 (impresión local)',
+    content: {
+      'application/json': {
+        schema: {
+          type: 'object',
+          properties: {buffer: {type: 'string'}},
+        },
+      },
+    },
+  })
+  async getBufferImpresionCierre(
+    @param.path.number('id') id: number,
+  ): Promise<{buffer: string}> {
+    const buffer = await this.impresoraService.buildCierreCajaBuffer(id);
+    return {buffer: buffer.toString('base64')};
+  }
+
+  @post('/cierre-caja/{id}/imprimir-servidor')
+  @response(204, {
+    description: 'Imprime el cierre de caja en la impresora del servidor',
+  })
+  async imprimirCierreEnServidor(
+    @param.path.number('id') id: number,
+  ): Promise<void> {
+    await this.impresoraService.printCierreCaja({id});
   }
 
 }
