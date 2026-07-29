@@ -18,12 +18,17 @@ import {
   response,
 } from '@loopback/rest';
 import {service} from '@loopback/core';
-import {CierreCaja, EfectivoEnCaja} from '../models';
+import {CierreCaja, Devolucion, EfectivoEnCaja} from '../models';
 import {
   CierreCajaRepository,
+  CreditoRepository,
+  DevolucionRepository,
   EntregaRepository,
+  FacturaRepository,
   GastosRepository,
+  MetodoPagoRepository,
   PagoFacturaRepository,
+  VentaRepository,
 } from '../repositories';
 import {ImpresoraService} from '../services';
 
@@ -31,12 +36,22 @@ export class CierreCajaController {
   constructor(
     @repository(CierreCajaRepository)
     public cierreCajaRepository: CierreCajaRepository,
+    @repository(CreditoRepository)
+    public creditoRepository: CreditoRepository,
     @repository(PagoFacturaRepository)
     public pagoFacturaRepository: PagoFacturaRepository,
     @repository(GastosRepository)
     public gastosRepository: GastosRepository,
     @repository(EntregaRepository)
     public entregaRepository: EntregaRepository,
+    @repository(FacturaRepository)
+    public facturaRepository: FacturaRepository,
+    @repository(VentaRepository)
+    public ventaRepository: VentaRepository,
+    @repository(DevolucionRepository)
+    public devolucionRepository: DevolucionRepository,
+    @repository(MetodoPagoRepository)
+    public metodoPagoRepository: MetodoPagoRepository,
     @service(ImpresoraService)
     public impresoraService: ImpresoraService,
   ) { }
@@ -107,73 +122,128 @@ export class CierreCajaController {
   ): Promise<EfectivoEnCaja> {
     const soloFecha = fecha.slice(0, 10);
 
-    const pagosEfectivoDelDia = await this.pagoFacturaRepository.find({
-      where: {
-        Fecha: {like: `${soloFecha}%`},
-        metodoPagoId: 1,
-      },
-      fields: {
-        Monto: true,
-      },
+    // --- Ventas y Zapato del Día ---
+    const facturasDelDia = await this.facturaRepository.find({
+      where: {Fecha: {like: `${soloFecha}%`}},
+      fields: {id: true, Total: true},
     });
+    const facturaIds = facturasDelDia.map(f => f.id).filter((id): id is number => typeof id === 'number');
+
+    const ventas = facturaIds.length > 0
+      ? await this.ventaRepository.find({
+          where: {facturaId: {inq: facturaIds}},
+          include: [{relation: 'zapato'}],
+        }) as any[]
+      : [];
+
+    const resumenVentasMap = new Map<string, {descripcion: string; cantidad: number; valor: number}>();
+    for (const v of ventas) {
+      const desc = v.zapato?.Descripcion ?? 'ITEM';
+      const clave = v.zapatoId?.toString() ?? desc;
+      const acc = resumenVentasMap.get(clave) ?? {descripcion: desc, cantidad: 0, valor: 0};
+      acc.cantidad += (v.Cantidad || 0);
+      acc.valor += (v.Cantidad || 0) * (v.Precio || 0);
+      resumenVentasMap.set(clave, acc);
+    }
+    const resumenVentas = Array.from(resumenVentasMap.values());
+    const totalVentas = resumenVentas.reduce((s, i) => s + i.valor, 0);
+    const totalZapatosVendidos = ventas.reduce((s, v) => s + (v.Cantidad || 0), 0);
+
+    // --- Gastos del día ---
+    const gastosDelDia = await this.gastosRepository.find({
+      where: {Fecha: {like: `${soloFecha}%`}},
+    });
+    const gastos = gastosDelDia.reduce((s, g) => s + (g.Valor ?? 0), 0);
+    const detalleGastos = gastosDelDia.map(g => ({
+      concepto: g.Concepto ?? 'Gasto',
+      cantidad: 1,
+      valor: g.Valor ?? 0,
+    }));
+
+    // --- Entregas del día ---
+    const entregasDelDia = await this.entregaRepository.find({
+      where: {Fecha: {like: `${soloFecha}%`}},
+    });
+    const entrega = entregasDelDia.reduce((s, e) => s + (e.Cobro ?? 0), 0);
+    const detalleEntregas = entregasDelDia.map(e => ({
+      empresa: e.EmpresaTrans ?? 'Empresa',
+      cantidadCajas: e.NumCajas ?? 1,
+      cobro: e.Cobro ?? 0,
+    }));
+
+    // --- Métodos de pago ---
+    const pagosDelDia = await this.pagoFacturaRepository.find({
+      where: {Fecha: {like: `${soloFecha}%`}},
+      include: [{relation: 'metodoPago'}],
+    }) as any[];
+
+    const metodoPagoMap = new Map<number, {nombre: string; valor: number}>();
+    for (const p of pagosDelDia) {
+      const mpId = p.metodoPagoId;
+      const nombre = p.metodoPago?.Nombre ?? 'Otro';
+      const acc = metodoPagoMap.get(mpId) ?? {nombre, valor: 0};
+      acc.valor += (p.Monto ?? 0);
+      metodoPagoMap.set(mpId, acc);
+    }
+    const resumenMetodoPago = Array.from(metodoPagoMap.values());
+    const totalMetodoPago = resumenMetodoPago.reduce((s, m) => s + m.valor, 0);
+
+    const ventasEfectivo = pagosDelDia
+      .filter((p: any) => p.metodoPagoId === 1)
+      .reduce((s: number, p: any) => s + (p.Monto ?? 0), 0);
+
+    // --- Créditos del Día ---
+    let totalCreditos = 0;
+    const facturasConCredito = await this.facturaRepository.find({
+      where: {Fecha: {like: `${soloFecha}%`}},
+      include: [{relation: 'ventas'}, {relation: 'pagoFacturas'}, {relation: 'creditos'}],
+    }) as any[];
+
+    for (const f of facturasConCredito) {
+      if (f.creditos && f.creditos.length > 0) {
+        const totalVentaCredito = (f.ventas ?? []).reduce(
+          (s: number, v: any) => s + ((v.Cantidad || 0) * (v.Precio || 0)),
+          0,
+        );
+        const totalFactura = (f.Total && f.Total > 0) ? f.Total : totalVentaCredito;
+        const pagos = (f.pagoFacturas ?? []).sort((a: any, b: any) => (a.id ?? 0) - (b.id ?? 0));
+        const abonoInicial = pagos.length > 0 ? (pagos[0].Monto ?? 0) : 0;
+        const saldoCreditoGenerado = Math.max(0, totalFactura - abonoInicial);
+        totalCreditos += saldoCreditoGenerado;
+      }
+    }
+
+    // --- Abonos del Día ---
+    const facturaIdsConPagos = pagosDelDia
+      .map((p: any) => p.facturaId)
+      .filter((id): id is number => typeof id === 'number');
+
+    let totalAbonos = 0;
+    if (facturaIdsConPagos.length > 0) {
+      const creditosExistentes = await this.creditoRepository.find({
+        where: {facturaId: {inq: facturaIdsConPagos}},
+      });
+      const facturasConCreditoSet = new Set(creditosExistentes.map(c => c.facturaId));
+      totalAbonos = pagosDelDia
+        .filter((p: any) => p.facturaId && facturasConCreditoSet.has(p.facturaId))
+        .reduce((s: number, p: any) => s + (p.Monto ?? 0), 0);
+    }
+
+    // --- Devoluciones ---
+    const devolucionesDelDia = await this.devolucionRepository.find({
+      where: {Fecha: {like: `${soloFecha}%`}},
+      include: [{relation: 'venta'}],
+    }) as Array<Devolucion & {venta?: {Precio?: number}}>;
+    const totalReembolsos = devolucionesDelDia.reduce((s, d) => s + ((d.venta?.Precio ?? 0) * (d.Cantidad ?? 0)), 0);
 
     const cierresDelDia = await this.cierreCajaRepository.find({
-      where: {
-        FechaHoraApertura: {like: `${soloFecha}%`},
-      },
-      fields: {
-        Base: true,
-        Entrega: true,
-      },
+      where: {FechaHoraApertura: {like: `${soloFecha}%`}},
     });
+    const base = cierresDelDia.reduce((s, c) => s + (c.Base ?? 0), 0);
+    const entregaCierre = cierresDelDia.reduce((s, c) => s + (c.Entrega ?? 0), 0);
 
-    const gastosDelDia = await this.gastosRepository.find({
-      where: {
-        Fecha: {like: `${soloFecha}%`},
-      },
-      fields: {
-        Valor: true,
-      },
-    });
-
-    const entregasDelDia = await this.entregaRepository.find({
-      where: {
-        Fecha: {like: `${soloFecha}%`},
-      },
-      fields: {
-        Cobro: true,
-      },
-    });
-
-    const ventasEfectivo = pagosEfectivoDelDia.reduce(
-      (acumulado, pago) => acumulado + (pago.Monto ?? 0),
-      0,
-    );
-
-    const base = cierresDelDia.reduce(
-      (acumulado, cierre) => acumulado + (cierre.Base ?? 0),
-      0,
-    );
-
-    const gastos = gastosDelDia.reduce(
-      (acumulado, gasto) => acumulado + (gasto.Valor ?? 0),
-      0,
-    );
-
-    const entrega = entregasDelDia.reduce(
-      (acumulado, entregaDia) => acumulado + (entregaDia.Cobro ?? 0),
-      0,
-    );
-
-    const efectivoEnCaja = ventasEfectivo + base - gastos - entrega;
-
-    const entregaCierreCaja = cierresDelDia.reduce(
-      (acumulado, cierre) => acumulado + (cierre.Entrega ?? 0),
-      0,
-    );
-
-    const quedaEnCaja = efectivoEnCaja - entregaCierreCaja;
-
+    const efectivoEnCaja = ventasEfectivo + base - gastos - entrega - totalReembolsos;
+    const quedaEnCaja = efectivoEnCaja - entregaCierre;
 
     return new EfectivoEnCaja({
       fecha: soloFecha,
@@ -183,6 +253,17 @@ export class CierreCajaController {
       entrega,
       efectivoEnCaja,
       quedaEnCaja,
+      resumenVentas,
+      totalVentas,
+      totalZapatosVendidos,
+      resumenMetodoPago,
+      totalMetodoPago,
+      detalleGastos,
+      detalleEntregas,
+      TotalReembolsos: totalReembolsos,
+      devoluciones: -totalReembolsos,
+      credito: -totalCreditos,
+      abonos: totalAbonos,
     });
   }
 

@@ -2,6 +2,8 @@ import {injectable} from '@loopback/core';
 import {repository} from '@loopback/repository';
 import {
   CierreCajaRepository,
+  CreditoRepository,
+  DevolucionRepository,
   EntregaRepository,
   FacturaRepository,
   GastosRepository,
@@ -38,12 +40,16 @@ export class ImpresoraService {
     public ventaRepository: VentaRepository,
     @repository(CierreCajaRepository)
     public cierreCajaRepository: CierreCajaRepository,
+    @repository(CreditoRepository)
+    public creditoRepository: CreditoRepository,
     @repository(GastosRepository)
     public gastosRepository: GastosRepository,
     @repository(EntregaRepository)
     public entregaRepository: EntregaRepository,
     @repository(PagoFacturaRepository)
     public pagoFacturaRepository: PagoFacturaRepository,
+    @repository(DevolucionRepository)
+    public devolucionRepository: DevolucionRepository,
   ) { }
 
   async printFactura(factura: {id: number}): Promise<void> {
@@ -268,7 +274,7 @@ export class ImpresoraService {
     // --- Ventas del día (resumen por zapato) ---
     const facturasDelDia = await this.facturaRepository.find({
       where: {Fecha: {like: `${soloFecha}%`}},
-      fields: {id: true},
+      fields: {id: true, Total: true},
     });
     
     console.log('>>> [DEBUG IMPRESORA] facturasDelDia count:', facturasDelDia.length);
@@ -307,11 +313,58 @@ export class ImpresoraService {
     }) as any[];
     const totalEntregas = entregasDelDia.reduce((s, e) => s + (e.Cobro ?? 0), 0);
 
+    // --- Devoluciones del día ---
+    const devolucionesDelDia = await this.devolucionRepository.find({
+      where: {Fecha: {like: `${soloFecha}%`}},
+      include: [{relation: 'venta'}],
+    }) as any[];
+    const totalDevoluciones = devolucionesDelDia.reduce(
+      (s: number, d: any) => s + ((d.venta?.Precio ?? 0) * (d.Cantidad ?? 0)),
+      0,
+    );
+
     // --- Métodos de pago del día (consulta por fecha directamente para mayor robustez) ---
     const pagosDelDia = await this.pagoFacturaRepository.find({
       where: {Fecha: {like: `${soloFecha}%`}},
       include: [{relation: 'metodoPago'}],
     }) as any[];
+
+    // --- Créditos del día ---
+    let totalCreditos = 0;
+    const facturasConCredito = await this.facturaRepository.find({
+      where: {Fecha: {like: `${soloFecha}%`}},
+      include: [{relation: 'ventas'}, {relation: 'pagoFacturas'}, {relation: 'creditos'}],
+    }) as any[];
+
+    for (const f of facturasConCredito) {
+      if (f.creditos && f.creditos.length > 0) {
+        const totalVentaCredito = (f.ventas ?? []).reduce(
+          (s: number, v: any) => s + ((v.Cantidad || 0) * (v.Precio || 0)),
+          0,
+        );
+        const totalFactura = (f.Total && f.Total > 0) ? f.Total : totalVentaCredito;
+        const pagos = (f.pagoFacturas ?? []).sort((a: any, b: any) => (a.id ?? 0) - (b.id ?? 0));
+        const abonoInicial = pagos.length > 0 ? (pagos[0].Monto ?? 0) : 0;
+        const saldoCreditoGenerado = Math.max(0, totalFactura - abonoInicial);
+        totalCreditos += saldoCreditoGenerado;
+      }
+    }
+
+    // --- Abonos del día ---
+    const facturaIdsConPagos = pagosDelDia
+      .map((p: any) => p.facturaId)
+      .filter((id): id is number => typeof id === 'number');
+
+    let totalAbonos = 0;
+    if (facturaIdsConPagos.length > 0) {
+      const creditosExistentes = await this.creditoRepository.find({
+        where: {facturaId: {inq: facturaIdsConPagos}},
+      });
+      const facturasConCreditoSet = new Set(creditosExistentes.map(c => c.facturaId));
+      totalAbonos = pagosDelDia
+        .filter((p: any) => p.facturaId && facturasConCreditoSet.has(p.facturaId))
+        .reduce((s: number, p: any) => s + (p.Monto ?? 0), 0);
+    }
 
     const metodoPagoMap = new Map<number, {nombre: string; valor: number}>();
     for (const p of pagosDelDia) {
@@ -330,7 +383,7 @@ export class ImpresoraService {
       .reduce((s: number, p: any) => s + (p.Monto ?? 0), 0);
     const base = cierre.Base ?? 0;
     const entregaCierre = cierre.Entrega ?? 0;
-    const efectivoEnCaja = ventasEfectivo + base - totalGastos - totalEntregas;
+    const efectivoEnCaja = ventasEfectivo + base - totalGastos - totalEntregas - totalDevoluciones;
     const quedaEnCaja = efectivoEnCaja - entregaCierre;
     const totalZapatosVendidos = ventas.reduce((s, v) => s + v.Cantidad, 0);
 
@@ -373,9 +426,9 @@ export class ImpresoraService {
     // ===== RESUMEN RAPIDO =====
     buffers.push(
       Buffer.from(this.formatRow('Base de caja', this.money(base), WIDTH) + '\n'),
-      Buffer.from(this.formatRow('Gastos del dia', this.money(totalGastos), WIDTH) + '\n'),
-      Buffer.from(this.formatRow('Entregas del dia', this.money(totalEntregas), WIDTH) + '\n'),
-      Buffer.from(this.formatRow('Zapatos vendidos', String(totalZapatosVendidos), WIDTH) + '\n'),
+      Buffer.from(this.formatRow('Devoluciones', `-${this.money(totalDevoluciones)}`, WIDTH) + '\n'),
+      Buffer.from(this.formatRow('Credito', `-${this.money(totalCreditos)}`, WIDTH) + '\n'),
+      Buffer.from(this.formatRow('Abonos', this.money(totalAbonos), WIDTH) + '\n'),
       LINE,
     );
 

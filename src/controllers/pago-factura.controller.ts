@@ -18,12 +18,16 @@ import {
   response,
 } from '@loopback/rest';
 import {PagoFactura} from '../models';
-import {PagoFacturaRepository} from '../repositories';
+import {CreditoRepository, FacturaRepository, PagoFacturaRepository} from '../repositories';
 
 export class PagoFacturaController {
   constructor(
     @repository(PagoFacturaRepository)
     public pagoFacturaRepository: PagoFacturaRepository,
+    @repository(CreditoRepository)
+    public creditoRepository: CreditoRepository,
+    @repository(FacturaRepository)
+    public facturaRepository: FacturaRepository,
   ) { }
 
   @post('/pago-factura')
@@ -44,9 +48,43 @@ export class PagoFacturaController {
     })
     pagoFactura: Omit<PagoFactura, 'id'>,
   ): Promise<PagoFactura> {
-    pagoFactura.Cambio = pagoFactura.MontoRecibido - pagoFactura.Monto;
+    pagoFactura.Cambio = (pagoFactura.MontoRecibido ?? 0) - pagoFactura.Monto;
     pagoFactura.Fecha = new Date().toLocaleString('sv-SE', {timeZone: 'America/Bogota'});
-    return this.pagoFacturaRepository.create(pagoFactura);
+    const nuevoPago = await this.pagoFacturaRepository.create(pagoFactura);
+
+    // === Auto-cierre de crédito ===
+    // Si la factura tiene un crédito asociado, verificamos si el saldo quedó en 0
+    try {
+      const facturaId = pagoFactura.facturaId ?? (pagoFactura as any).FacturaId;
+      if (facturaId) {
+        const factura = await this.facturaRepository.findById(facturaId, {
+          include: [{relation: 'pagoFacturas'}],
+        }) as any;
+
+        const totalAbonado = (factura.pagoFacturas ?? []).reduce(
+          (s: number, p: any) => s + (p.Monto ?? 0),
+          0,
+        );
+        const saldoPendiente = (factura.Total ?? 0) - totalAbonado;
+
+        if (saldoPendiente <= 0) {
+          // Buscar el crédito asociado a esta factura y marcarlo como Pagado
+          const creditos = await this.creditoRepository.find({
+            where: {facturaId: facturaId},
+          });
+          for (const credito of creditos) {
+            if (credito.Estado !== 'Pagado') {
+              await this.creditoRepository.updateById(credito.id!, {Estado: 'Pagado'} as any);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // No interrumpir el flujo si falla el auto-cierre
+      console.error('[PagoFactura] Error al intentar cerrar crédito automáticamente:', e);
+    }
+
+    return nuevoPago;
   }
 
   @get('/pago-factura/count')
