@@ -34,4 +34,5 @@ export * from './venta.model';
 export * from './zapato.model';
 export * from './zapatoSerie.model';
 export * from './zapatoUnidad.model';
+export * from './notificacion.model';
 

@@ -64,4 +64,5 @@ export * from './metodo-pago-pago-factura.controller';
 export * from './pago-factura-factura.controller';
 export * from './pago-factura-metodo-pago.controller';
 export * from './pago-factura.controller';
+export * from './notificacion.controller';
 

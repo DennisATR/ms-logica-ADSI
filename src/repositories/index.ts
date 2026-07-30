@@ -25,3 +25,4 @@ export * from './almacen.repository';
 export * from './cierre-caja-metodo-pago.repository';
 
 export * from './pago-factura.repository';
+export * from './notificacion.repository';
