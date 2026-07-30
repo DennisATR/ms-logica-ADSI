@@ -27,7 +27,10 @@ const DOUBLE_SIZE = Buffer.from([0x1D, 0x21, 0x11]);
 const NORMAL_SIZE = Buffer.from([0x1D, 0x21, 0x00]);
 const CUT = Buffer.from([0x1D, 0x56, 0x41, 0x10]);
 const CASH_DRAWER = Buffer.from([0x1B, 0x70, 0x00, 0x19, 0xFA]);
-const LINE = Buffer.from('--------------------------------\n');
+
+// Línea del encabezado de 31 guiones y línea general de 44 guiones (46 menos 1 de cada lado)
+const HEADER_LINE = Buffer.from('-'.repeat(31) + '\n');
+const LINE = Buffer.from('-'.repeat(44) + '\n');
 
 @injectable()
 export class ImpresoraService {
@@ -111,7 +114,7 @@ export class ImpresoraService {
       Buffer.from(`NIT: ${local?.NIT ?? 'N/A'}\n`),
       Buffer.from(`Dir: ${local?.Direccion ?? 'N/A'}\n`),
       Buffer.from(`Tel: ${local?.Telefono ?? 'N/A'}\n`),
-      LINE,
+      HEADER_LINE,
       LEFT,
     );
 
@@ -144,13 +147,18 @@ export class ImpresoraService {
     buffers.push(BOLD_ON, Buffer.from('DETALLE\n'), BOLD_OFF);
 
     ventas.forEach((v: any) => {
-      const desc = (v.zapato?.Descripcion ?? 'ITEM').substring(0, 16);
+      const esLocal = !v.esVirtual && v.almacenId === local?.almacenId;
+      const descId = esLocal 
+        ? (v.zapato?.Descripcion || v.zapatoId || 'ITEM')
+        : ((v.esVirtual && v.codigoVirtual) ? v.codigoVirtual : (v.zapatoId || 'ITEM'));
+      
+      const desc = descId.toString().substring(0, 20);
       buffers.push(
         Buffer.from(
-          `${this.pad(desc, 16)}${this.pad(String(v.Cantidad), 4)}${this.pad(
+          `${this.pad(desc, 20)} ${this.pad(String(v.Cantidad), 4)} ${this.pad(
             this.money(v.Precio),
-            6,
-          )}${this.money(v.Cantidad * v.Precio)}\n`,
+            9,
+          )} ${this.money(v.Cantidad * v.Precio)}\n`,
         ),
       );
     });
@@ -190,8 +198,6 @@ export class ImpresoraService {
     }
 
     buffers.push(LINE);
-
-
 
     // ===== FOOTER =====
     buffers.push(
@@ -268,16 +274,12 @@ export class ImpresoraService {
       soloFecha = `${yyyy}-${mm}-${dd}`;
     }
 
-    console.log('>>> [DEBUG IMPRESORA] cierre.FechaHoraApertura:', fechaAperturaRaw);
-    console.log('>>> [DEBUG IMPRESORA] soloFecha calculado:', soloFecha);
-
     // --- Ventas del día (resumen por zapato) ---
     const facturasDelDia = await this.facturaRepository.find({
       where: {Fecha: {like: `${soloFecha}%`}},
       fields: {id: true, Total: true},
     });
     
-    console.log('>>> [DEBUG IMPRESORA] facturasDelDia count:', facturasDelDia.length);
     const facturaIds = facturasDelDia
       .map(f => f.id)
       .filter((id): id is number => typeof id === 'number');
@@ -291,8 +293,13 @@ export class ImpresoraService {
 
     const resumenVentasMap = new Map<string, {descripcion: string; cantidad: number; valor: number}>();
     for (const v of ventas) {
-      const desc = (v.zapato?.Descripcion ?? 'ITEM').substring(0, 14);
-      const clave = v.zapatoId?.toString() ?? desc;
+      const esLocal = !v.esVirtual && v.almacenId === local?.almacenId;
+      const descId = esLocal 
+        ? (v.zapato?.Descripcion || v.zapatoId || 'ITEM')
+        : ((v.esVirtual && v.codigoVirtual) ? v.codigoVirtual : (v.zapatoId || 'ITEM'));
+        
+      const desc = descId.toString().substring(0, 27);
+      const clave = descId.toString();
       const acc = resumenVentasMap.get(clave) ?? {descripcion: desc, cantidad: 0, valor: 0};
       acc.cantidad += v.Cantidad;
       acc.valor += v.Cantidad * v.Precio;
@@ -323,7 +330,7 @@ export class ImpresoraService {
       0,
     );
 
-    // --- Métodos de pago del día (consulta por fecha directamente para mayor robustez) ---
+    // --- Métodos de pago del día ---
     const pagosDelDia = await this.pagoFacturaRepository.find({
       where: {Fecha: {like: `${soloFecha}%`}},
       include: [{relation: 'metodoPago'}],
@@ -385,9 +392,8 @@ export class ImpresoraService {
     const entregaCierre = cierre.Entrega ?? 0;
     const efectivoEnCaja = ventasEfectivo + base - totalGastos - totalEntregas - totalDevoluciones;
     const quedaEnCaja = efectivoEnCaja - entregaCierre;
-    const totalZapatosVendidos = ventas.reduce((s, v) => s + v.Cantidad, 0);
 
-    const WIDTH = 32;
+    const WIDTH = 44;
     const buffers: Buffer[] = [];
 
     // ===== HEADER =====
@@ -402,7 +408,7 @@ export class ImpresoraService {
       Buffer.from(`NIT: ${local?.NIT ?? 'N/A'}\n`),
       Buffer.from(`Dir: ${local?.Direccion ?? 'N/A'}\n`),
       Buffer.from(`Tel: ${local?.Telefono ?? 'N/A'}\n`),
-      LINE,
+      HEADER_LINE,
       LEFT,
     );
 
@@ -441,7 +447,7 @@ export class ImpresoraService {
       for (const item of resumenVentas) {
         buffers.push(
           Buffer.from(this.formatThreeCols(
-            item.descripcion.substring(0, 12),
+            item.descripcion.substring(0, 27),
             String(item.cantidad),
             this.money(item.valor),
             WIDTH,
@@ -552,8 +558,34 @@ export class ImpresoraService {
   }
 
   // ===== HELPERS =====
-  private money(v: number): string {
-    return v.toFixed(2);
+  /**
+   * Formatea números sin decimales (.00).
+   * Utiliza '.' para separar miles y "'" para separar millones.
+   * Ejemplo: 12000 -> "12.000", 1250000 -> "1'250.000"
+   */
+  private money(valor: number): string {
+    const entero = Math.round(valor || 0);
+    const sign = entero < 0 ? '-' : '';
+    const str = Math.abs(entero).toString();
+
+    if (str.length <= 3) {
+      return sign + str;
+    }
+
+    let result = '';
+    let count = 0;
+    for (let i = str.length - 1; i >= 0; i--) {
+      if (count > 0 && count % 3 === 0) {
+        if (count === 6) {
+          result = "'" + result;
+        } else {
+          result = "." + result;
+        }
+      }
+      result = str[i] + result;
+      count++;
+    }
+    return sign + result;
   }
 
   private pad(t: string, l: number): string {
@@ -575,8 +607,8 @@ export class ImpresoraService {
    * col1 | col2 centrado | col3 derecha
    */
   private formatThreeCols(col1: string, col2: string, col3: string, width: number): string {
-    const c3 = col3.substring(0, 10);
-    const c2 = col2.substring(0, 5).padEnd(5);
+    const c3 = col3.substring(0, 10).padStart(10);
+    const c2 = col2.substring(0, 5).padStart(5);
     const c1Len = width - c2.length - c3.length - 2;
     const c1 = col1.substring(0, c1Len).padEnd(c1Len);
     return `${c1} ${c2} ${c3}`;

@@ -48,6 +48,17 @@ export class Venta extends Entity {
   })
   Precio: number;
 
+  @property({
+    type: 'boolean',
+    default: false,
+  })
+  esVirtual?: boolean;
+
+  @property({
+    type: 'string',
+  })
+  codigoVirtual?: string;
+
   @belongsTo(() => Almacen)
   almacenId: number;
 

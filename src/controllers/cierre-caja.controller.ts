@@ -29,6 +29,7 @@ import {
   MetodoPagoRepository,
   PagoFacturaRepository,
   VentaRepository,
+  InfolocalRepository,
 } from '../repositories';
 import {ImpresoraService} from '../services';
 
@@ -52,6 +53,8 @@ export class CierreCajaController {
     public devolucionRepository: DevolucionRepository,
     @repository(MetodoPagoRepository)
     public metodoPagoRepository: MetodoPagoRepository,
+    @repository(InfolocalRepository)
+    public infolocalRepository: InfolocalRepository,
     @service(ImpresoraService)
     public impresoraService: ImpresoraService,
   ) { }
@@ -136,10 +139,17 @@ export class CierreCajaController {
         }) as any[]
       : [];
 
+    const local = await this.infolocalRepository.findOne({order: ['id DESC']});
+
     const resumenVentasMap = new Map<string, {descripcion: string; cantidad: number; valor: number}>();
     for (const v of ventas) {
-      const desc = v.zapato?.Descripcion ?? 'ITEM';
-      const clave = v.zapatoId?.toString() ?? desc;
+      const esLocal = !v.esVirtual && v.almacenId === local?.almacenId;
+      const descId = esLocal 
+        ? (v.zapato?.Descripcion || v.zapatoId || 'ITEM')
+        : ((v.esVirtual && v.codigoVirtual) ? v.codigoVirtual : (v.zapatoId || 'ITEM'));
+        
+      const desc = descId.toString();
+      const clave = desc;
       const acc = resumenVentasMap.get(clave) ?? {descripcion: desc, cantidad: 0, valor: 0};
       acc.cantidad += (v.Cantidad || 0);
       acc.valor += (v.Cantidad || 0) * (v.Precio || 0);

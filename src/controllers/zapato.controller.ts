@@ -380,6 +380,7 @@ export class ZapatoController {
         id,
         Descripcion,
         Categoria,
+        Color,
         Talla: talla,
         Cantidad: cantidades[i],
         PrecioCosto: precioDecodificado,
@@ -407,8 +408,6 @@ export class ZapatoController {
 
     return zapatosCreados;
   }
-
-
 
   private normalizarDescripcion(descripcion: string): string {
     if (!descripcion) return '';

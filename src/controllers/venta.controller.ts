@@ -55,13 +55,6 @@ export class VentaController {
     venta: Omit<Venta, 'id'>,
     @param.query.string('lugarImpresion') lugarImpresion?: string,
   ): Promise<Venta> {
-    // Obtener el zapato correspondiente
-    const zapato = await this.zapatoRepository.findById(venta.zapatoId);
-
-    // Restar la cantidad vendida del stock del zapato
-    const nuevaCantidad = zapato.Cantidad - venta.Cantidad;
-    await this.zapatoRepository.updateById(zapato.id, {Cantidad: nuevaCantidad});
-
     // Obtener el último registro de Infolocal
     const [latestInfolocal] = await this.infolocalRepository.find({
       order: ['id DESC'],
@@ -70,6 +63,15 @@ export class VentaController {
 
     if (!latestInfolocal) {
       throw new Error('No se encontró un registro válido en Infolocal');
+    }
+
+    if (!venta.esVirtual && venta.almacenId === latestInfolocal.almacenId) {
+      // Obtener el zapato correspondiente
+      const zapato = await this.zapatoRepository.findById(venta.zapatoId);
+
+      // Restar la cantidad vendida del stock del zapato
+      const nuevaCantidad = zapato.Cantidad - venta.Cantidad;
+      await this.zapatoRepository.updateById(zapato.id, {Cantidad: nuevaCantidad});
     }
 
     // Crear la venta
@@ -230,6 +232,56 @@ export class VentaController {
     return Array.from(resumenPorZapato.values()).map(item => new ResumenDelDiaVentas(item));
   }
 
+  @get('/venta/exportar-dia/fecha/{fecha}')
+  @response(200, {
+    description: 'Ventas de un día específico con relaciones de factura y almacén',
+    content: {
+      'application/json': {
+        schema: {
+          type: 'array',
+          items: getModelSchemaRef(Venta, {includeRelations: true}),
+        },
+      },
+    },
+  })
+  async exportarVentasDia(
+    @param.path.string('fecha') fecha: string,
+  ): Promise<Venta[]> {
+    const soloFecha = fecha.slice(0, 10);
+
+    const facturasDelDia = await this.facturaRepository.find({
+      where: {
+        Fecha: {
+          like: `${soloFecha}%`,
+        },
+      },
+      fields: {
+        id: true,
+      },
+    });
+
+    const facturaIds = facturasDelDia
+      .map(factura => factura.id)
+      .filter((id): id is number => typeof id === 'number');
+
+    if (facturaIds.length === 0) {
+      return [];
+    }
+
+    return this.ventaRepository.find({
+      where: {
+        facturaId: {
+          inq: facturaIds,
+        },
+      },
+      include: [
+        {relation: 'factura'},
+        {relation: 'almacen'},
+        {relation: 'zapato'},
+      ],
+    });
+  }
+
   @get('/venta')
   @response(200, {
     description: 'Array of Venta model instances',
@@ -379,6 +431,27 @@ export class VentaController {
   })
   async deleteById(@param.path.number('id') id: number): Promise<void> {
     await this.ventaRepository.deleteById(id);
+  }
+
+  @get('/venta/virtuales')
+  @response(200, {
+    description: 'Array of virtual Venta model instances',
+    content: {
+      'application/json': {
+        schema: {
+          type: 'array',
+          items: getModelSchemaRef(Venta, {includeRelations: true}),
+        },
+      },
+    },
+  })
+  async findVirtuales(): Promise<Venta[]> {
+    return this.ventaRepository.find({
+      where: {
+        esVirtual: true,
+      },
+      include: [{relation: 'factura'}, {relation: 'zapato'}],
+    });
   }
 
 }

@@ -32,7 +32,16 @@ app.post('/print', (req, res) => {
     const iface = device.interfaces[0];
     
     // En Windows a veces es necesario hacer detachKernelDriver
-    if (iface.isKernelDriverActive && iface.isKernelDriverActive()) {
+    let kernelActive = false;
+    try {
+      if (iface.isKernelDriverActive && iface.isKernelDriverActive()) {
+        kernelActive = true;
+      }
+    } catch (e) {
+      // Ignorar LIBUSB_ERROR_NOT_SUPPORTED en Windows
+    }
+
+    if (kernelActive) {
       try {
         iface.detachKernelDriver();
       } catch (e) {
