@@ -37,11 +37,22 @@ export class Vendedor extends Entity {
   @property({
     type: 'string',
     required: true,
+  })
+  Clave: string;
+
+  @property({
+    type: 'string',
+    required: true,
     mysql: {
       dataType: 'datetime',
     },
   })
   FechaReg: string;
+
+  @property({
+    type: 'number',
+  })
+  usuarioId?: number;
 
   @hasMany(() => Pago)
   pagos: Pago[];

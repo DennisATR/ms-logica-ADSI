@@ -20,10 +20,18 @@ import {
 import {Vendedor} from '../models';
 import {VendedorRepository} from '../repositories';
 
+import {UsuarioRepository} from '../repositories';
+import {SeguridadUsuarioService} from '../services';
+import {service} from '@loopback/core';
+
 export class VendedorController {
   constructor(
     @repository(VendedorRepository)
     public vendedorRepository: VendedorRepository,
+    @repository(UsuarioRepository)
+    public usuarioRepository: UsuarioRepository,
+    @service(SeguridadUsuarioService)
+    public seguridadUsuarioService: SeguridadUsuarioService,
   ) { }
 
   @post('/vendedor')
@@ -46,34 +54,33 @@ export class VendedorController {
   ): Promise<Vendedor> {
     const fechaRegistro = new Date().toLocaleString('sv-SE', {timeZone: 'America/Bogota'});
 
+    // 1. Crear Usuario primero para obtener su ID auto-incremental
+    let usuarioCreado;
+    try {
+      const claveCifrada = this.seguridadUsuarioService.cifrarTexto(vendedor.Clave);
+      usuarioCreado = await this.usuarioRepository.create({
+        Nombre: vendedor.Nombre,
+        Apellido: vendedor.Apellido,
+        Telefono: vendedor.Telefono,
+        Correo: vendedor.Correo!,
+        Clave: claveCifrada,
+        rolId: 2, // Rol Asesor
+        FechaReg: fechaRegistro
+      });
+    } catch (e) {
+      console.error("Error al crear usuario asociado al vendedor:", e);
+      throw e;
+    }
+
+    // 2. Crear Vendedor usando el id del Usuario
     const nuevoVendedor = {
       ...vendedor,
-      id: await this.generarIdVendedor(fechaRegistro),
+      id: await this.vendedorRepository.generarIdVendedor(fechaRegistro),
+      usuarioId: usuarioCreado.id,
       FechaReg: fechaRegistro
     };
 
     return this.vendedorRepository.create(nuevoVendedor);
-  }
-
-  private async generarIdVendedor(fecha: string): Promise<string> {
-    const año = fecha.substring(0, 4);
-    const dia = fecha.substring(8, 10);
-    const mes = fecha.substring(5, 7);
-    const prefijo = año + dia + mes;
-    const ultimoVendedor = await this.vendedorRepository.findOne({
-      where: {
-        id: {like: `${prefijo}%`}
-      },
-      order: ['id DESC']
-    });
-
-    let secuencial = 1;
-    if (ultimoVendedor && ultimoVendedor.id) {
-      const ultimoSecuencial = parseInt(ultimoVendedor.id.slice(-2));
-      secuencial = ultimoSecuencial + 1;
-    }
-    const secuencialStr = secuencial.toString().padStart(2, '0');
-    return prefijo + secuencialStr;
   }
 
   @get('/vendedor/count')
@@ -156,6 +163,21 @@ export class VendedorController {
     vendedor: Vendedor,
   ): Promise<void> {
     await this.vendedorRepository.updateById(id, vendedor);
+    const vendedorActualizado = await this.vendedorRepository.findById(id);
+    if (vendedorActualizado.usuarioId) {
+      try {
+        const updateData: any = {};
+        if (vendedor.Nombre) updateData.Nombre = vendedor.Nombre;
+        if (vendedor.Apellido) updateData.Apellido = vendedor.Apellido;
+        if (vendedor.Telefono) updateData.Telefono = vendedor.Telefono;
+        if (vendedor.Correo) updateData.Correo = vendedor.Correo;
+        if (vendedor.Clave) updateData.Clave = this.seguridadUsuarioService.cifrarTexto(vendedor.Clave);
+        
+        await this.usuarioRepository.updateById(vendedorActualizado.usuarioId, updateData);
+      } catch (e) {
+        console.error("Error al actualizar usuario asociado al vendedor:", e);
+      }
+    }
   }
 
   @put('/vendedor/{id}')
@@ -167,7 +189,35 @@ export class VendedorController {
     @requestBody() vendedor: Vendedor,
   ): Promise<void> {
     vendedor.FechaReg = new Date().toISOString();
+    
+    // Si viene la clave, asegurar que la ciframos (pero ten en cuenta que el replaceById del frontend puede enviarla vacía)
+    if (vendedor.Clave) {
+       vendedor.Clave = this.seguridadUsuarioService.cifrarTexto(vendedor.Clave);
+    } else {
+       // Recuperar la clave anterior si no viene en el payload (esto depende de como el frontend la envíe)
+       const vendAnterior = await this.vendedorRepository.findById(id);
+       vendedor.Clave = vendAnterior.Clave;
+       vendedor.usuarioId = vendAnterior.usuarioId;
+    }
+
     await this.vendedorRepository.replaceById(id, vendedor);
+
+    if (vendedor.usuarioId) {
+      try {
+         const updateData: any = {
+           Nombre: vendedor.Nombre,
+           Apellido: vendedor.Apellido,
+           Telefono: vendedor.Telefono,
+           Correo: vendedor.Correo,
+         };
+         if (vendedor.Clave) {
+           updateData.Clave = vendedor.Clave;
+         }
+         await this.usuarioRepository.updateById(vendedor.usuarioId, updateData);
+      } catch (e) {
+         console.error("Error al actualizar usuario asociado:", e);
+      }
+    }
   }
 
   @del('/vendedor/{id}')
@@ -175,6 +225,14 @@ export class VendedorController {
     description: 'Vendedor DELETE success',
   })
   async deleteById(@param.path.string('id') id: string): Promise<void> {
+    const vendedor = await this.vendedorRepository.findById(id);
+    if (vendedor.usuarioId) {
+       try {
+         await this.usuarioRepository.deleteById(vendedor.usuarioId);
+       } catch (e) {
+         console.error("Error al eliminar usuario asociado:", e);
+       }
+    }
     await this.vendedorRepository.deleteById(id);
   }
 }

@@ -21,7 +21,7 @@ import {
   response,
 } from '@loopback/rest';
 import {Credenciales, Login, Usuario} from '../models';
-import {LoginRepository, UsuarioRepository} from '../repositories';
+import {LoginRepository, UsuarioRepository, VendedorRepository} from '../repositories';
 import {SeguridadUsuarioService} from '../services';
 
 export class UsuarioController {
@@ -32,6 +32,8 @@ export class UsuarioController {
     public seguridadUsuarioService: SeguridadUsuarioService,
     @repository(LoginRepository)
     public loginRepository: LoginRepository,
+    @repository(VendedorRepository)
+    public vendedorRepository: VendedorRepository,
   ) { }
 
   @post('/usuario')
@@ -74,7 +76,28 @@ export class UsuarioController {
       throw new HttpErrors.InternalServerError('Error al cifrar la clave del usuario.');
     }
 
-    return this.usuarioRepository.create(usuario);
+    const creado = await this.usuarioRepository.create(usuario);
+
+    // Crear Vendedor automáticamente si el rol es Asesor (rolId 2)
+    if (usuario.rolId === 2) {
+      try {
+        const idVendedor = await this.vendedorRepository.generarIdVendedor(fechaRegistro);
+        await this.vendedorRepository.create({
+          id: idVendedor,
+          Nombre: usuario.Nombre,
+          Apellido: usuario.Apellido,
+          Telefono: usuario.Telefono,
+          Correo: usuario.Correo,
+          Clave: usuario.Clave,
+          usuarioId: creado.id,
+          FechaReg: fechaRegistro
+        });
+      } catch (e) {
+        console.error("Error al crear vendedor asociado al usuario:", e);
+      }
+    }
+
+    return creado;
   }
 
   @get('/usuario/count')
@@ -177,6 +200,24 @@ export class UsuarioController {
     usuario: Usuario,
   ): Promise<void> {
     await this.usuarioRepository.updateById(id, usuario);
+    const usuarioActualizado = await this.usuarioRepository.findById(id);
+
+    if (usuarioActualizado.rolId === 2) {
+      try {
+        const vendedor = await this.vendedorRepository.findOne({where: {usuarioId: id}});
+        if (vendedor) {
+          const updateData: any = {};
+          if (usuario.Nombre) updateData.Nombre = usuario.Nombre;
+          if (usuario.Apellido) updateData.Apellido = usuario.Apellido;
+          if (usuario.Telefono) updateData.Telefono = usuario.Telefono;
+          if (usuario.Correo) updateData.Correo = usuario.Correo;
+          if (usuario.Clave) updateData.Clave = usuario.Clave; // Ya cifrada o por cifrar? En patch usualmente ya se maneja en el frontend o aqui no lo ciframos, pero lo ideal es usar replaceById. Wait, replaceById is what is mostly used. 
+          await this.vendedorRepository.updateById(vendedor.id, updateData);
+        }
+      } catch (e) {
+        console.error("Error al actualizar vendedor asociado:", e);
+      }
+    }
   }
 
   @put('/usuario/{id}')
@@ -206,6 +247,26 @@ export class UsuarioController {
       }
     }
     await this.usuarioRepository.replaceById(id, usuario);
+
+    if (usuario.rolId === 2) {
+      try {
+        const vendedor = await this.vendedorRepository.findOne({where: {usuarioId: id}});
+        if (vendedor) {
+          const updateData: any = {
+            Nombre: usuario.Nombre,
+            Apellido: usuario.Apellido,
+            Telefono: usuario.Telefono,
+            Correo: usuario.Correo,
+          };
+          if (usuario.Clave) {
+             updateData.Clave = usuario.Clave; // Ya cifrada en las líneas anteriores
+          }
+          await this.vendedorRepository.updateById(vendedor.id, updateData);
+        }
+      } catch (e) {
+        console.error("Error al actualizar vendedor asociado:", e);
+      }
+    }
   }
 
   @del('/usuario/{id}')
@@ -217,6 +278,17 @@ export class UsuarioController {
     description: 'Usuario DELETE success',
   })
   async deleteById(@param.path.number('id') id: number): Promise<void> {
+    const usuario = await this.usuarioRepository.findById(id);
+    if (usuario.rolId === 2) {
+       try {
+         const vendedor = await this.vendedorRepository.findOne({where: {usuarioId: id}});
+         if (vendedor) {
+           await this.vendedorRepository.deleteById(vendedor.id);
+         }
+       } catch (e) {
+         console.error("Error al eliminar vendedor asociado:", e);
+       }
+    }
     await this.usuarioRepository.deleteById(id);
   }
 

@@ -24,4 +24,25 @@ export class VendedorRepository extends DefaultCrudRepository<
     this.pagos = this.createHasManyRepositoryFactoryFor('pagos', pagoRepositoryGetter,);
     this.registerInclusionResolver('pagos', this.pagos.inclusionResolver);
   }
+
+  public async generarIdVendedor(fecha: string): Promise<string> {
+    const año = fecha.substring(0, 4);
+    const dia = fecha.substring(8, 10);
+    const mes = fecha.substring(5, 7);
+    const prefijo = año + dia + mes;
+    const ultimoVendedor = await this.findOne({
+      where: {
+        id: {like: `${prefijo}%`}
+      },
+      order: ['id DESC']
+    });
+
+    let secuencial = 1;
+    if (ultimoVendedor && ultimoVendedor.id) {
+      const ultimoSecuencial = parseInt(ultimoVendedor.id.slice(-2));
+      secuencial = ultimoSecuencial + 1;
+    }
+    const secuencialStr = secuencial.toString().padStart(2, '0');
+    return prefijo + secuencialStr;
+  }
 }
