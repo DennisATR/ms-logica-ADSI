@@ -28,9 +28,9 @@ const NORMAL_SIZE = Buffer.from([0x1D, 0x21, 0x00]);
 const CUT = Buffer.from([0x1D, 0x56, 0x41, 0x10]);
 const CASH_DRAWER = Buffer.from([0x1B, 0x70, 0x00, 0x19, 0xFA]);
 
-// Línea del encabezado de 31 guiones y línea general de 44 guiones (46 menos 1 de cada lado)
+// Línea del encabezado y línea general de 46 guiones
 const HEADER_LINE = Buffer.from('-'.repeat(31) + '\n');
-const LINE = Buffer.from('-'.repeat(44) + '\n');
+const LINE = Buffer.from('-'.repeat(46) + '\n');
 
 @injectable()
 export class ImpresoraService {
@@ -148,10 +148,10 @@ export class ImpresoraService {
 
     ventas.forEach((v: any) => {
       const esLocal = !v.esVirtual && v.almacenId === local?.almacenId;
-      const descId = esLocal 
+      const descId = esLocal
         ? (v.zapato?.Descripcion || v.zapatoId || 'ITEM')
         : ((v.esVirtual && v.codigoVirtual) ? v.codigoVirtual : (v.zapatoId || 'ITEM'));
-      
+
       const desc = descId.toString().substring(0, 20);
       buffers.push(
         Buffer.from(
@@ -240,7 +240,7 @@ export class ImpresoraService {
           else resolve();
         });
       } catch (e) {
-        try { device.close(); } catch { }
+        try {device.close();} catch { }
         reject(e);
       }
     });
@@ -252,12 +252,12 @@ export class ImpresoraService {
 
     let soloFecha = '';
     const fechaAperturaRaw: any = cierre.FechaHoraApertura;
-    
+
     try {
       const d = fechaAperturaRaw ? new Date(fechaAperturaRaw) : new Date();
       if (!Number.isNaN(d.getTime())) {
         // Obtenemos la fecha en la zona horaria de Colombia
-        const bogotaDate = new Date(d.toLocaleString('en-US', { timeZone: 'America/Bogota' }));
+        const bogotaDate = new Date(d.toLocaleString('en-US', {timeZone: 'America/Bogota'}));
         const yyyy = bogotaDate.getFullYear();
         const mm = String(bogotaDate.getMonth() + 1).padStart(2, '0');
         const dd = String(bogotaDate.getDate()).padStart(2, '0');
@@ -267,7 +267,7 @@ export class ImpresoraService {
       }
     } catch (e) {
       // Fallback a hoy en caso de que todo falle
-      const bogotaDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' }));
+      const bogotaDate = new Date(new Date().toLocaleString('en-US', {timeZone: 'America/Bogota'}));
       const yyyy = bogotaDate.getFullYear();
       const mm = String(bogotaDate.getMonth() + 1).padStart(2, '0');
       const dd = String(bogotaDate.getDate()).padStart(2, '0');
@@ -279,25 +279,25 @@ export class ImpresoraService {
       where: {Fecha: {like: `${soloFecha}%`}},
       fields: {id: true, Total: true},
     });
-    
+
     const facturaIds = facturasDelDia
       .map(f => f.id)
       .filter((id): id is number => typeof id === 'number');
 
     const ventas = facturaIds.length > 0
       ? await this.ventaRepository.find({
-          where: {facturaId: {inq: facturaIds}},
-          include: [{relation: 'zapato'}],
-        }) as any[]
+        where: {facturaId: {inq: facturaIds}},
+        include: [{relation: 'zapato'}],
+      }) as any[]
       : [];
 
     const resumenVentasMap = new Map<string, {descripcion: string; cantidad: number; valor: number}>();
     for (const v of ventas) {
       const esLocal = !v.esVirtual && v.almacenId === local?.almacenId;
-      const descId = esLocal 
+      const descId = esLocal
         ? (v.zapato?.Descripcion || v.zapatoId || 'ITEM')
         : ((v.esVirtual && v.codigoVirtual) ? v.codigoVirtual : (v.zapatoId || 'ITEM'));
-        
+
       const desc = descId.toString().substring(0, 27);
       const clave = descId.toString();
       const acc = resumenVentasMap.get(clave) ?? {descripcion: desc, cantidad: 0, valor: 0};
@@ -568,24 +568,25 @@ export class ImpresoraService {
     const sign = entero < 0 ? '-' : '';
     const str = Math.abs(entero).toString();
 
-    if (str.length <= 3) {
-      return sign + str;
-    }
-
     let result = '';
-    let count = 0;
-    for (let i = str.length - 1; i >= 0; i--) {
-      if (count > 0 && count % 3 === 0) {
-        if (count === 6) {
-          result = "'" + result;
-        } else {
-          result = "." + result;
+
+    if (str.length <= 3) {
+      result = str;
+    } else {
+      let count = 0;
+      for (let i = str.length - 1; i >= 0; i--) {
+        if (count > 0 && count % 3 === 0) {
+          if (count === 6) {
+            result = "'" + result;
+          } else {
+            result = "." + result;
+          }
         }
+        result = str[i] + result;
+        count++;
       }
-      result = str[i] + result;
-      count++;
     }
-    return sign + result;
+    return sign + '$' + result;
   }
 
   private pad(t: string, l: number): string {

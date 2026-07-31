@@ -1,4 +1,8 @@
 import 'reflect-metadata';
+import * as dotenv from 'dotenv';
+
+dotenv.config();
+
 import {App, ApplicationConfig} from './application';
 
 export * from './application';

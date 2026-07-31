@@ -1,5 +1,5 @@
 export * from './almacen.model';
-export * from './cambio-clave.model';
+
 export * from './cierre-caja-metodo-pago.model';
 export * from './cierre-caja.model';
 export * from './cliente.model';

@@ -20,7 +20,7 @@ import {
   requestBody,
   response,
 } from '@loopback/rest';
-import {CambioClave, Credenciales, Login, Usuario} from '../models';
+import {Credenciales, Login, Usuario} from '../models';
 import {LoginRepository, UsuarioRepository} from '../repositories';
 import {SeguridadUsuarioService} from '../services';
 
@@ -191,7 +191,7 @@ export class UsuarioController {
     @param.path.number('id') id: number,
     @requestBody() usuario: Usuario,
   ): Promise<void> {
-    usuario.FechaReg = new Date().toISOString();
+    usuario.FechaReg = new Date().toLocaleString('sv-SE', {timeZone: 'America/Bogota'});
 
     if (usuario.Clave) {
       usuario.Clave = this.seguridadUsuarioService.cifrarTexto(usuario.Clave);
@@ -255,64 +255,5 @@ export class UsuarioController {
     throw new HttpErrors.Unauthorized('Credenciales incorrectas.');
   }
 
-
-
-  /* El método `cambiarClave` es un endpoint POST que permite al usuario
-cambiar su contraseña. Se necesita un cuerpo de solicitud que contiene el
-modelo `CambioClave`, que representa la dirección de correo electrónico del
-usuario, su contraseña actual y la contraseña nueva. */
-
-  @patch('/cambiar-clave')
-  @response(200, {
-    description: 'Usuario model instance',
-    content: {'application/json': {schema: getModelSchemaRef(Usuario)}},
-  })
-  async cambiarClave(
-    @requestBody({
-      content: {
-        'application/json': {
-          schema: getModelSchemaRef(CambioClave, {partial: true}),
-        },
-      },
-    })
-    cambioClave: CambioClave,
-  ): Promise<object> {
-    const credenciales = {
-      correo: cambioClave.correo,
-      clave: cambioClave.claveActual,
-    };
-
-    //Cifrar la clave ingresada por el usuario.
-    credenciales.clave = this.seguridadUsuarioService.cifrarTexto(credenciales.clave);
-
-    // Buscar al usuario que corresponda con las credenciales ingresadas.
-    const usuario = await this.usuarioRepository.findOne({
-      where: {
-        Correo: credenciales.correo,
-        Clave: credenciales.clave,
-      },
-    });
-
-    // Verificar si el usuario existe.
-    if (!usuario) {
-      throw new HttpErrors.NotFound('Usuario no encontrado');
-    }
-
-    // Verificar si la contraseña actual es correcta utilizando la función identificarUsuario
-    const credenciales2: Credenciales = credenciales as unknown as Credenciales;
-    let usuarioAutenticado =
-      await this.seguridadUsuarioService.identificarUsuario(credenciales2);
-
-    if (!usuarioAutenticado) {
-      throw new HttpErrors.Unauthorized('Contraseña actual incorrecta');
-    }
-
-    // Asignar la contraseña nueva y actualizar el usuario.
-    let nuevaClave = cambioClave.claveNueva;
-    let nuevaClaveCifrada = this.seguridadUsuarioService.cifrarTexto(nuevaClave);
-    usuario.Clave = nuevaClaveCifrada;
-    await this.usuarioRepository.updateById(usuario.getId(), usuario);
-    return usuario;
-  }
 }
 
