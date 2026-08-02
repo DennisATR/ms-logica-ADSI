@@ -13,7 +13,7 @@ export class Entrega extends Entity {
     type: 'string',
     required: true,
   })
-  Remitente?: string;
+  NumeroGuia?: string;
 
   @property({
     type: 'string',

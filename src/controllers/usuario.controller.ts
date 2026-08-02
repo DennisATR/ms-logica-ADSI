@@ -220,6 +220,23 @@ export class UsuarioController {
     }
   }
 
+  private formatFechaMySQL(val: any): string {
+    if (!val) {
+      return new Date().toLocaleString('sv-SE', {timeZone: 'America/Bogota'}).replace('T', ' ').substring(0, 19);
+    }
+    const d = new Date(val);
+    if (isNaN(d.getTime())) {
+      return new Date().toLocaleString('sv-SE', {timeZone: 'America/Bogota'}).replace('T', ' ').substring(0, 19);
+    }
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    const seconds = String(d.getSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  }
+
   @put('/usuario/{id}')
   @authenticate({
     strategy: 'auth',
@@ -232,10 +249,13 @@ export class UsuarioController {
     @param.path.number('id') id: number,
     @requestBody() usuario: Usuario,
   ): Promise<void> {
-    usuario.FechaReg = new Date().toLocaleString('sv-SE', {timeZone: 'America/Bogota'});
+    const usuarioAnterior = await this.usuarioRepository.findById(id);
+    usuario.FechaReg = this.formatFechaMySQL(usuarioAnterior.FechaReg || usuario.FechaReg);
 
-    if (usuario.Clave) {
+    if (usuario.Clave && usuario.Clave !== usuarioAnterior.Clave) {
       usuario.Clave = this.seguridadUsuarioService.cifrarTexto(usuario.Clave);
+    } else {
+      usuario.Clave = usuarioAnterior.Clave;
     }
 
     if (usuario.Correo) {

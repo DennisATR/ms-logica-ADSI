@@ -18,9 +18,10 @@ import {
   response,
 } from '@loopback/rest';
 import {service} from '@loopback/core';
-import {CierreCaja, Devolucion, EfectivoEnCaja} from '../models';
+import {CierreCaja, CierreCajaMetodoPago, Devolucion, EfectivoEnCaja} from '../models';
 import {
   CierreCajaRepository,
+  CierreCajaMetodoPagoRepository,
   CreditoRepository,
   DevolucionRepository,
   EntregaRepository,
@@ -37,6 +38,8 @@ export class CierreCajaController {
   constructor(
     @repository(CierreCajaRepository)
     public cierreCajaRepository: CierreCajaRepository,
+    @repository(CierreCajaMetodoPagoRepository)
+    public cierreCajaMetodoPagoRepository: CierreCajaMetodoPagoRepository,
     @repository(CreditoRepository)
     public creditoRepository: CreditoRepository,
     @repository(PagoFacturaRepository)
@@ -182,10 +185,13 @@ export class CierreCajaController {
     }));
 
     // --- Métodos de pago ---
-    const pagosDelDia = await this.pagoFacturaRepository.find({
-      where: {Fecha: {like: `${soloFecha}%`}},
-      include: [{relation: 'metodoPago'}],
-    }) as any[];
+    // Usar facturaIds del día para filtrar pagos (más confiable que filtrar por Fecha)
+    const pagosDelDia = facturaIds.length > 0
+      ? await this.pagoFacturaRepository.find({
+          where: {facturaId: {inq: facturaIds}},
+          include: [{relation: 'metodoPago'}],
+        }) as any[]
+      : [];
 
     const metodoPagoMap = new Map<number, {nombre: string; valor: number}>();
     for (const p of pagosDelDia) {
@@ -328,6 +334,62 @@ export class CierreCajaController {
     cierreCaja: CierreCaja,
   ): Promise<void> {
     await this.cierreCajaRepository.updateById(id, cierreCaja);
+
+    // Al cerrar la caja, registrar los totales por método de pago
+    if (cierreCaja.Estado === 'Cerrada') {
+      // Obtener la fecha del cierre para filtrar los pagos del día
+      const cierre = await this.cierreCajaRepository.findById(id);
+      const fechaApertura: any = cierre.FechaHoraApertura;
+      let soloFecha = '';
+      try {
+        const d = fechaApertura ? new Date(fechaApertura) : new Date();
+        const bogotaDate = new Date(d.toLocaleString('en-US', {timeZone: 'America/Bogota'}));
+        const yyyy = bogotaDate.getFullYear();
+        const mm = String(bogotaDate.getMonth() + 1).padStart(2, '0');
+        const dd = String(bogotaDate.getDate()).padStart(2, '0');
+        soloFecha = `${yyyy}-${mm}-${dd}`;
+      } catch {
+        const bogotaDate = new Date(new Date().toLocaleString('en-US', {timeZone: 'America/Bogota'}));
+        soloFecha = bogotaDate.toISOString().slice(0, 10);
+      }
+
+      // Obtener las facturas del día
+      const facturasDelDia = await this.facturaRepository.find({
+        where: {Fecha: {like: `${soloFecha}%`}},
+        fields: {id: true},
+      });
+      const facturaIds = facturasDelDia
+        .map(f => f.id)
+        .filter((fid): fid is number => typeof fid === 'number');
+
+      // Obtener pagos del día con su método de pago
+      const pagosDelDia = facturaIds.length > 0
+        ? await this.pagoFacturaRepository.find({
+            where: {facturaId: {inq: facturaIds}},
+            include: [{relation: 'metodoPago'}],
+          }) as any[]
+        : [];
+
+      // Agrupar totales por metodoPagoId
+      const metodoPagoMap = new Map<number, number>();
+      for (const p of pagosDelDia) {
+        const mpId = p.metodoPagoId as number;
+        const prev = metodoPagoMap.get(mpId) ?? 0;
+        metodoPagoMap.set(mpId, prev + (p.Monto ?? 0));
+      }
+
+      // Eliminar registros anteriores de este cierre (para evitar duplicados en re-cierres)
+      await this.cierreCajaMetodoPagoRepository.deleteAll({cierreCajaId: id});
+
+      // Insertar un registro por cada método de pago
+      for (const [mpId, total] of metodoPagoMap.entries()) {
+        await this.cierreCajaMetodoPagoRepository.create(new CierreCajaMetodoPago({
+          cierreCajaId: id,
+          metodoPagoId: mpId,
+          Total: total,
+        }));
+      }
+    }
   }
 
   @put('/cierre-caja/{id}')

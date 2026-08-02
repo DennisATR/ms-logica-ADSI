@@ -144,7 +144,24 @@ export class VendedorController {
     @param.path.string('id') id: string,
     @param.filter(Vendedor, {exclude: 'where'}) filter?: FilterExcludingWhere<Vendedor>
   ): Promise<Vendedor> {
-    return this.vendedorRepository.findById(id, filter);
+    const vendedor = await this.vendedorRepository.findById(id, filter);
+    if (!vendedor.Clave || vendedor.Clave === '') {
+      try {
+        let u = null;
+        if (vendedor.usuarioId) {
+          u = await this.usuarioRepository.findById(vendedor.usuarioId);
+        } else if (vendedor.Correo) {
+          u = await this.usuarioRepository.findOne({where: {Correo: vendedor.Correo}});
+        }
+        if (u) {
+          if (!vendedor.usuarioId) vendedor.usuarioId = u.id;
+          if (u.Clave) vendedor.Clave = u.Clave;
+        }
+      } catch (e) {
+        console.error("Error al obtener clave del usuario para vendedor:", e);
+      }
+    }
+    return vendedor;
   }
 
   @patch('/vendedor/{id}')
@@ -175,9 +192,25 @@ export class VendedorController {
         
         await this.usuarioRepository.updateById(vendedorActualizado.usuarioId, updateData);
       } catch (e) {
-        console.error("Error al actualizar usuario asociado al vendedor:", e);
       }
     }
+  }
+
+  private formatFechaMySQL(val: any): string {
+    if (!val) {
+      return new Date().toLocaleString('sv-SE', {timeZone: 'America/Bogota'}).replace('T', ' ').substring(0, 19);
+    }
+    const d = new Date(val);
+    if (isNaN(d.getTime())) {
+      return new Date().toLocaleString('sv-SE', {timeZone: 'America/Bogota'}).replace('T', ' ').substring(0, 19);
+    }
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    const seconds = String(d.getSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
   }
 
   @put('/vendedor/{id}')
@@ -188,17 +221,34 @@ export class VendedorController {
     @param.path.string('id') id: string,
     @requestBody() vendedor: Vendedor,
   ): Promise<void> {
-    vendedor.FechaReg = new Date().toISOString();
-    
-    // Si viene la clave, asegurar que la ciframos (pero ten en cuenta que el replaceById del frontend puede enviarla vacía)
-    if (vendedor.Clave) {
-       vendedor.Clave = this.seguridadUsuarioService.cifrarTexto(vendedor.Clave);
-    } else {
-       // Recuperar la clave anterior si no viene en el payload (esto depende de como el frontend la envíe)
-       const vendAnterior = await this.vendedorRepository.findById(id);
-       vendedor.Clave = vendAnterior.Clave;
-       vendedor.usuarioId = vendAnterior.usuarioId;
+    const vendAnterior = await this.vendedorRepository.findById(id);
+
+    if (!vendAnterior.usuarioId && vendAnterior.Correo) {
+      try {
+        const u = await this.usuarioRepository.findOne({where: {Correo: vendAnterior.Correo}});
+        if (u) vendAnterior.usuarioId = u.id;
+      } catch (e) {}
     }
+
+    if (!vendedor.usuarioId && vendAnterior.usuarioId) {
+      vendedor.usuarioId = vendAnterior.usuarioId;
+    }
+
+    let claveAnterior = vendAnterior.Clave;
+    if ((!claveAnterior || claveAnterior === '') && vendAnterior.usuarioId) {
+      try {
+        const u = await this.usuarioRepository.findById(vendAnterior.usuarioId);
+        if (u && u.Clave) claveAnterior = u.Clave;
+      } catch (e) {}
+    }
+
+    if (vendedor.Clave && vendedor.Clave !== claveAnterior) {
+      vendedor.Clave = this.seguridadUsuarioService.cifrarTexto(vendedor.Clave);
+    } else {
+      vendedor.Clave = claveAnterior || vendedor.Clave;
+    }
+
+    vendedor.FechaReg = this.formatFechaMySQL(vendAnterior.FechaReg || vendedor.FechaReg);
 
     await this.vendedorRepository.replaceById(id, vendedor);
 
@@ -209,10 +259,8 @@ export class VendedorController {
            Apellido: vendedor.Apellido,
            Telefono: vendedor.Telefono,
            Correo: vendedor.Correo,
+           Clave: vendedor.Clave
          };
-         if (vendedor.Clave) {
-           updateData.Clave = vendedor.Clave;
-         }
          await this.usuarioRepository.updateById(vendedor.usuarioId, updateData);
       } catch (e) {
          console.error("Error al actualizar usuario asociado:", e);

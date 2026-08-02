@@ -19,6 +19,8 @@ const PRODUCT_ID = 256;
 
 // ===== ESC/POS COMMANDS =====
 const INIT = Buffer.from([0x1B, 0x40]);
+// Seleccionar code page CP850 (ESC t 2) para caracteres españoles (ñ, á, é, etc.)
+const SET_CP850 = Buffer.from([0x1B, 0x74, 0x02]);
 const CENTER = Buffer.from([0x1B, 0x61, 0x01]);
 const LEFT = Buffer.from([0x1B, 0x61, 0x00]);
 const BOLD_ON = Buffer.from([0x1B, 0x45, 0x01]);
@@ -105,15 +107,16 @@ export class ImpresoraService {
     // ===== HEADER =====
     buffers.push(
       INIT,
+      SET_CP850,
       CENTER,
       DOUBLE_SIZE,
       BOLD_ON,
-      Buffer.from(`${local?.Nombre ?? 'LOCAL'}\n`),
+      this.toESCPOS(`${local?.Nombre ?? 'LOCAL'}\n`),
       BOLD_OFF,
       NORMAL_SIZE,
-      Buffer.from(`NIT: ${local?.NIT ?? 'N/A'}\n`),
-      Buffer.from(`Dir: ${local?.Direccion ?? 'N/A'}\n`),
-      Buffer.from(`Tel: ${local?.Telefono ?? 'N/A'}\n`),
+      this.toESCPOS(`NIT: ${local?.NIT ?? 'N/A'}\n`),
+      this.toESCPOS(`Dir: ${local?.Direccion ?? 'N/A'}\n`),
+      this.toESCPOS(`Tel: ${local?.Telefono ?? 'N/A'}\n`),
       HEADER_LINE,
       LEFT,
     );
@@ -123,20 +126,20 @@ export class ImpresoraService {
     const abono = pagos.reduce((acc: number, pago: any) => acc + (pago.Monto ?? 0), 0);
 
     buffers.push(
-      Buffer.from(`Factura #: ${factura.id}\n`),
-      Buffer.from(`Fecha: ${this.formatDate(factura.Fecha)}\n`),
-      Buffer.from(`Cliente: ${(factura as any).cliente?.Nombre ?? 'Consumidor Final'}\n`),
-      Buffer.from(`Vendedor: ${factura.vendedor?.Nombre ?? 'N/A'}\n`),
+      this.toESCPOS(`Factura #: ${factura.id}\n`),
+      this.toESCPOS(`Fecha: ${this.formatDate(factura.Fecha)}\n`),
+      this.toESCPOS(`Cliente: ${(factura as any).cliente?.Nombre ?? 'Consumidor Final'}\n`),
+      this.toESCPOS(`Vendedor: ${factura.vendedor?.Nombre ?? 'N/A'}\n`),
       LINE,
     );
 
     if (pagos.length === 0) {
-      buffers.push(Buffer.from('Pagos: Sin registros\n'));
+      buffers.push(this.toESCPOS('Pagos: Sin registros\n'));
     } else {
-      buffers.push(Buffer.from('Pagos:\n'));
+      buffers.push(this.toESCPOS('Pagos:\n'));
       pagos.forEach((pago: any) => {
         buffers.push(
-          Buffer.from(`- ${pago.metodoPago?.Nombre ?? 'N/A'}: ${this.money(pago.Monto ?? 0)}\n`),
+          this.toESCPOS(`- ${pago.metodoPago?.Nombre ?? 'N/A'}: ${this.money(pago.Monto ?? 0)}\n`),
         );
       });
     }
@@ -144,7 +147,7 @@ export class ImpresoraService {
     buffers.push(LINE);
 
     // ===== DETALLE =====
-    buffers.push(BOLD_ON, Buffer.from('DETALLE\n'), BOLD_OFF);
+    buffers.push(BOLD_ON, this.toESCPOS('DETALLE\n'), BOLD_OFF);
 
     ventas.forEach((v: any) => {
       const esLocal = !v.esVirtual && v.almacenId === local?.almacenId;
@@ -154,7 +157,7 @@ export class ImpresoraService {
 
       const desc = descId.toString().substring(0, 20);
       buffers.push(
-        Buffer.from(
+        this.toESCPOS(
           `${this.pad(desc, 20)} ${this.pad(String(v.Cantidad), 4)} ${this.pad(
             this.money(v.Precio),
             9,
@@ -169,19 +172,19 @@ export class ImpresoraService {
     const metodoPagoNombre = (pagos[0]?.metodoPago?.Nombre ?? '').toLowerCase();
     const esCredito = metodoPagoNombre.includes('credito') || metodoPagoNombre.includes('crédito');
 
-    buffers.push(BOLD_ON, Buffer.from(`TOTAL: ${this.money(factura.Total)}\n`), BOLD_OFF);
+    buffers.push(BOLD_ON, this.toESCPOS(`TOTAL: ${this.money(factura.Total)}\n`), BOLD_OFF);
 
     if (esCredito) {
       // Crédito: abono acumulado, saldo pendiente + lo recibido/cambio de este pago
       buffers.push(
-        Buffer.from(`ABONO:    ${this.money(abono)}\n`),
-        Buffer.from(`SALDO:    ${this.money(factura.Total - abono)}\n`),
+        this.toESCPOS(`ABONO:    ${this.money(abono)}\n`),
+        this.toESCPOS(`SALDO:    ${this.money(factura.Total - abono)}\n`),
       );
       const primerPago = pagos[0];
       if (primerPago && (primerPago.MontoRecibido ?? 0) > 0) {
         buffers.push(
-          Buffer.from(`RECIBIDO: ${this.money(primerPago.MontoRecibido)}\n`),
-          Buffer.from(`CAMBIO:   ${this.money(primerPago.Cambio ?? 0)}\n`),
+          this.toESCPOS(`RECIBIDO: ${this.money(primerPago.MontoRecibido)}\n`),
+          this.toESCPOS(`CAMBIO:   ${this.money(primerPago.Cambio ?? 0)}\n`),
         );
       }
     } else {
@@ -191,8 +194,8 @@ export class ImpresoraService {
       const cambio = primerPago?.Cambio ?? 0;
       if (montoRecibido > 0) {
         buffers.push(
-          Buffer.from(`RECIBIDO: ${this.money(montoRecibido)}\n`),
-          Buffer.from(`CAMBIO:   ${this.money(cambio)}\n`),
+          this.toESCPOS(`RECIBIDO: ${this.money(montoRecibido)}\n`),
+          this.toESCPOS(`CAMBIO:   ${this.money(cambio)}\n`),
         );
       }
     }
@@ -202,11 +205,11 @@ export class ImpresoraService {
     // ===== FOOTER =====
     buffers.push(
       CENTER,
-      Buffer.from(local?.Mensaje ?? '¡Gracias por su compra!\n'),
-      Buffer.from('\n'),
+      this.toESCPOS(local?.Mensaje ?? '¡Gracias por su compra!\n'),
+      this.toESCPOS('\n'),
       LEFT,
-      Buffer.from('Desarrollado por ADSI\n'),
-      Buffer.from('adsi.notificaciones@gmail.com\n'),
+      this.toESCPOS('Desarrollado por ADSI\n'),
+      this.toESCPOS('adsi.notificaciones@gmail.com\n'),
       CUT,
       CASH_DRAWER,
     );
@@ -399,15 +402,16 @@ export class ImpresoraService {
     // ===== HEADER =====
     buffers.push(
       INIT,
+      SET_CP850,
       CENTER,
       DOUBLE_SIZE,
       BOLD_ON,
-      Buffer.from(`${local?.Nombre ?? 'LOCAL'}\n`),
+      this.toESCPOS(`${local?.Nombre ?? 'LOCAL'}\n`),
       BOLD_OFF,
       NORMAL_SIZE,
-      Buffer.from(`NIT: ${local?.NIT ?? 'N/A'}\n`),
-      Buffer.from(`Dir: ${local?.Direccion ?? 'N/A'}\n`),
-      Buffer.from(`Tel: ${local?.Telefono ?? 'N/A'}\n`),
+      this.toESCPOS(`NIT: ${local?.NIT ?? 'N/A'}\n`),
+      this.toESCPOS(`Dir: ${local?.Direccion ?? 'N/A'}\n`),
+      this.toESCPOS(`Tel: ${local?.Telefono ?? 'N/A'}\n`),
       HEADER_LINE,
       LEFT,
     );
@@ -416,37 +420,37 @@ export class ImpresoraService {
     buffers.push(
       CENTER,
       BOLD_ON,
-      Buffer.from('CIERRE DE CAJA\n'),
+      this.toESCPOS('CIERRE DE CAJA\n'),
       BOLD_OFF,
       LEFT,
-      Buffer.from(`Apertura: ${this.formatDate(cierre.FechaHoraApertura)}\n`),
+      this.toESCPOS(`Apertura: ${this.formatDate(cierre.FechaHoraApertura)}\n`),
     );
     if (cierre.FechaHoraCierre) {
-      buffers.push(Buffer.from(`Cierre:   ${this.formatDate(cierre.FechaHoraCierre)}\n`));
+      buffers.push(this.toESCPOS(`Cierre:   ${this.formatDate(cierre.FechaHoraCierre)}\n`));
     }
     buffers.push(
-      Buffer.from(`Estado:   ${cierre.Estado ?? 'Abierta'}\n`),
+      this.toESCPOS(`Estado:   ${cierre.Estado ?? 'Abierta'}\n`),
       LINE,
     );
 
     // ===== RESUMEN RAPIDO =====
     buffers.push(
-      Buffer.from(this.formatRow('Base de caja', this.money(base), WIDTH) + '\n'),
-      Buffer.from(this.formatRow('Devoluciones', `-${this.money(totalDevoluciones)}`, WIDTH) + '\n'),
-      Buffer.from(this.formatRow('Credito', `-${this.money(totalCreditos)}`, WIDTH) + '\n'),
-      Buffer.from(this.formatRow('Abonos', this.money(totalAbonos), WIDTH) + '\n'),
+      this.toESCPOS(this.formatRow('Base de caja', this.money(base), WIDTH) + '\n'),
+      this.toESCPOS(this.formatRow('Devoluciones', `-${this.money(totalDevoluciones)}`, WIDTH) + '\n'),
+      this.toESCPOS(this.formatRow('Credito', `-${this.money(totalCreditos)}`, WIDTH) + '\n'),
+      this.toESCPOS(this.formatRow('Abonos', this.money(totalAbonos), WIDTH) + '\n'),
       LINE,
     );
 
     // ===== RESUMEN VENTAS =====
-    buffers.push(BOLD_ON, Buffer.from('RESUMEN VENTAS\n'), BOLD_OFF);
+    buffers.push(BOLD_ON, this.toESCPOS('RESUMEN VENTAS\n'), BOLD_OFF);
     if (resumenVentas.length === 0) {
-      buffers.push(Buffer.from('Sin ventas\n'));
+      buffers.push(this.toESCPOS('Sin ventas\n'));
     } else {
-      buffers.push(Buffer.from(this.formatThreeCols('Desc', 'Cant', 'Valor', WIDTH) + '\n'));
+      buffers.push(this.toESCPOS(this.formatThreeCols('Desc', 'Cant', 'Valor', WIDTH) + '\n'));
       for (const item of resumenVentas) {
         buffers.push(
-          Buffer.from(this.formatThreeCols(
+          this.toESCPOS(this.formatThreeCols(
             item.descripcion.substring(0, 27),
             String(item.cantidad),
             this.money(item.valor),
@@ -455,19 +459,19 @@ export class ImpresoraService {
         );
       }
       buffers.push(
-        Buffer.from(this.formatRow('Total Ventas', this.money(totalVentas), WIDTH) + '\n'),
+        this.toESCPOS(this.formatRow('Total Ventas', this.money(totalVentas), WIDTH) + '\n'),
       );
     }
     buffers.push(LINE);
 
     // ===== GASTOS =====
-    buffers.push(BOLD_ON, Buffer.from('GASTOS\n'), BOLD_OFF);
+    buffers.push(BOLD_ON, this.toESCPOS('GASTOS\n'), BOLD_OFF);
     if (gastosDelDia.length === 0) {
-      buffers.push(Buffer.from('Sin gastos\n'));
+      buffers.push(this.toESCPOS('Sin gastos\n'));
     } else {
       for (const g of gastosDelDia) {
         buffers.push(
-          Buffer.from(this.formatRow(
+          this.toESCPOS(this.formatRow(
             (g.Concepto ?? 'Gasto').substring(0, 18),
             this.money(g.Valor ?? 0),
             WIDTH,
@@ -475,19 +479,19 @@ export class ImpresoraService {
         );
       }
       buffers.push(
-        Buffer.from(this.formatRow('Total Gastos', this.money(totalGastos), WIDTH) + '\n'),
+        this.toESCPOS(this.formatRow('Total Gastos', this.money(totalGastos), WIDTH) + '\n'),
       );
     }
     buffers.push(LINE);
 
     // ===== ENTREGAS =====
-    buffers.push(BOLD_ON, Buffer.from('ENTREGAS\n'), BOLD_OFF);
+    buffers.push(BOLD_ON, this.toESCPOS('ENTREGAS\n'), BOLD_OFF);
     if (entregasDelDia.length === 0) {
-      buffers.push(Buffer.from('Sin entregas\n'));
+      buffers.push(this.toESCPOS('Sin entregas\n'));
     } else {
       for (const e of entregasDelDia) {
         buffers.push(
-          Buffer.from(this.formatRow(
+          this.toESCPOS(this.formatRow(
             (e.EmpresaTrans ?? 'Empresa').substring(0, 18),
             this.money(e.Cobro ?? 0),
             WIDTH,
@@ -495,19 +499,19 @@ export class ImpresoraService {
         );
       }
       buffers.push(
-        Buffer.from(this.formatRow('Total Entregas', this.money(totalEntregas), WIDTH) + '\n'),
+        this.toESCPOS(this.formatRow('Total Entregas', this.money(totalEntregas), WIDTH) + '\n'),
       );
     }
     buffers.push(LINE);
 
     // ===== METODOS DE PAGO =====
-    buffers.push(BOLD_ON, Buffer.from('METODOS DE PAGO\n'), BOLD_OFF);
+    buffers.push(BOLD_ON, this.toESCPOS('METODOS DE PAGO\n'), BOLD_OFF);
     if (resumenMetodoPago.length === 0) {
-      buffers.push(Buffer.from('Sin pagos\n'));
+      buffers.push(this.toESCPOS('Sin pagos\n'));
     } else {
       for (const mp of resumenMetodoPago) {
         buffers.push(
-          Buffer.from(this.formatRow(
+          this.toESCPOS(this.formatRow(
             mp.nombre.substring(0, 18),
             this.money(mp.valor),
             WIDTH,
@@ -515,7 +519,7 @@ export class ImpresoraService {
         );
       }
       buffers.push(
-        Buffer.from(this.formatRow('Total', this.money(totalMetodoPago), WIDTH) + '\n'),
+        this.toESCPOS(this.formatRow('Total', this.money(totalMetodoPago), WIDTH) + '\n'),
       );
     }
     buffers.push(LINE);
@@ -523,9 +527,9 @@ export class ImpresoraService {
     // ===== TOTALES EFECTIVO =====
     buffers.push(
       BOLD_ON,
-      Buffer.from(this.formatRow('Entrega', this.money(entregaCierre), WIDTH) + '\n'),
-      Buffer.from(this.formatRow('Efectivo Total', this.money(efectivoEnCaja), WIDTH) + '\n'),
-      Buffer.from(this.formatRow('Queda en Caja', this.money(quedaEnCaja), WIDTH) + '\n'),
+      this.toESCPOS(this.formatRow('Entrega', this.money(entregaCierre), WIDTH) + '\n'),
+      this.toESCPOS(this.formatRow('Efectivo Total', this.money(efectivoEnCaja), WIDTH) + '\n'),
+      this.toESCPOS(this.formatRow('Queda en Caja', this.money(quedaEnCaja), WIDTH) + '\n'),
       BOLD_OFF,
     );
 
@@ -534,9 +538,9 @@ export class ImpresoraService {
       buffers.push(
         LINE,
         BOLD_ON,
-        Buffer.from(this.formatRow('Monto Esperado', this.money(cierre.MontoEsperado ?? 0), WIDTH) + '\n'),
-        Buffer.from(this.formatRow('Monto Real', this.money(cierre.MontoReal ?? 0), WIDTH) + '\n'),
-        Buffer.from(this.formatRow('Diferencia', this.money(cierre.Diferencia ?? 0), WIDTH) + '\n'),
+        this.toESCPOS(this.formatRow('Monto Esperado', this.money(cierre.MontoEsperado ?? 0), WIDTH) + '\n'),
+        this.toESCPOS(this.formatRow('Monto Real', this.money(cierre.MontoReal ?? 0), WIDTH) + '\n'),
+        this.toESCPOS(this.formatRow('Diferencia', this.money(cierre.Diferencia ?? 0), WIDTH) + '\n'),
         BOLD_OFF,
       );
     }
@@ -546,11 +550,11 @@ export class ImpresoraService {
     // ===== FOOTER =====
     buffers.push(
       CENTER,
-      Buffer.from(local?.Mensaje ?? '¡Gracias por su compra!\n'),
-      Buffer.from('\n'),
+      this.toESCPOS(local?.Mensaje ?? '!Gracias por su compra!\n'),
+      this.toESCPOS('\n'),
       LEFT,
-      Buffer.from('Desarrollado por ADSI\n'),
-      Buffer.from('adsi.notificaciones@gmail.com\n'),
+      this.toESCPOS('Desarrollado por ADSI\n'),
+      this.toESCPOS('adsi.notificaciones@gmail.com\n'),
       CUT,
     );
 
@@ -558,11 +562,47 @@ export class ImpresoraService {
   }
 
   // ===== HELPERS =====
+
   /**
-   * Formatea números sin decimales (.00).
-   * Utiliza '.' para separar miles y "'" para separar millones.
-   * Ejemplo: 12000 -> "12.000", 1250000 -> "1'250.000"
+   * Convierte texto UTF-8 con caracteres españoles al encoding CP850
+   * que usan las impresoras térmicas ESC/POS.
+   * Esto resuelve el problema de que ñ, ú, etc. no se imprimen correctamente.
    */
+  private toESCPOS(text: string): Buffer {
+    const map: {[key: string]: number} = {
+      // Minúsculas acentuadas
+      '\u00e1': 0xa0, // á
+      '\u00e9': 0x82, // é
+      '\u00ed': 0xa1, // í
+      '\u00f3': 0xa2, // ó
+      '\u00fa': 0xa3, // ú
+      '\u00fc': 0x81, // ü
+      '\u00f1': 0xa4, // ñ
+      '\u00bf': 0xa8, // ¿
+      '\u00a1': 0xad, // ¡
+      // Mayúsculas acentuadas
+      '\u00c1': 0xb5, // Á
+      '\u00c9': 0x90, // É
+      '\u00cd': 0xd6, // Í
+      '\u00d3': 0xe0, // Ó
+      '\u00da': 0xe9, // Ú
+      '\u00dc': 0x9a, // Ü
+      '\u00d1': 0xa5, // Ñ
+    };
+    const bytes: number[] = [];
+    for (const ch of text) {
+      const code = map[ch];
+      if (code !== undefined) {
+        bytes.push(code);
+      } else {
+        // Para caracteres ASCII normales, usar el código ASCII
+        const ascii = ch.charCodeAt(0);
+        bytes.push(ascii < 256 ? ascii : 0x3f); // 0x3f = '?'
+      }
+    }
+    return Buffer.from(bytes);
+  }
+
   private money(valor: number): string {
     const entero = Math.round(valor || 0);
     const sign = entero < 0 ? '-' : '';
