@@ -64,6 +64,16 @@ export class Usuario extends Entity {
   })
   FechaReg: string;
 
+  @property({
+    type: 'string',
+  })
+  radiusUser?: string;
+
+  @property({
+    type: 'string',
+  })
+  radiusClave?: string;
+
   @hasMany(() => Login)
   logins: Login[];
 

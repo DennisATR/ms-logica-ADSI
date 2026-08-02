@@ -18,10 +18,8 @@ import {
   response,
 } from '@loopback/rest';
 import {Vendedor} from '../models';
-import {VendedorRepository} from '../repositories';
-
-import {UsuarioRepository} from '../repositories';
-import {SeguridadUsuarioService} from '../services';
+import {UsuarioRepository, VendedorRepository} from '../repositories';
+import {RadiusService, SeguridadUsuarioService} from '../services';
 import {service} from '@loopback/core';
 
 export class VendedorController {
@@ -32,6 +30,8 @@ export class VendedorController {
     public usuarioRepository: UsuarioRepository,
     @service(SeguridadUsuarioService)
     public seguridadUsuarioService: SeguridadUsuarioService,
+    @service(RadiusService)
+    public radiusService: RadiusService,
   ) { }
 
   @post('/vendedor')
@@ -54,6 +54,14 @@ export class VendedorController {
   ): Promise<Vendedor> {
     const fechaRegistro = new Date().toLocaleString('sv-SE', {timeZone: 'America/Bogota'});
 
+    // 0. Crear usuario RADIUS
+    let radiusResult = {radiusUser: undefined as string | undefined, radiusClave: undefined as string | undefined};
+    try {
+      radiusResult = await this.radiusService.crearUsuarioRadius(vendedor.Nombre);
+    } catch (e) {
+      console.error('Error al generar credenciales RADIUS para el vendedor:', e);
+    }
+
     // 1. Crear Usuario primero para obtener su ID auto-incremental
     let usuarioCreado;
     try {
@@ -65,7 +73,9 @@ export class VendedorController {
         Correo: vendedor.Correo!,
         Clave: claveCifrada,
         rolId: 2, // Rol Asesor
-        FechaReg: fechaRegistro
+        FechaReg: fechaRegistro,
+        radiusUser: radiusResult.radiusUser,
+        radiusClave: radiusResult.radiusClave,
       });
     } catch (e) {
       console.error("Error al crear usuario asociado al vendedor:", e);
@@ -80,7 +90,11 @@ export class VendedorController {
       FechaReg: fechaRegistro
     };
 
-    return this.vendedorRepository.create(nuevoVendedor);
+    const vendedorCreado = await this.vendedorRepository.create(nuevoVendedor);
+    return Object.assign(vendedorCreado, {
+      radiusUser: usuarioCreado.radiusUser,
+      radiusClave: usuarioCreado.radiusClave,
+    });
   }
 
   @get('/vendedor/count')

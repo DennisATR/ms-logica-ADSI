@@ -22,7 +22,7 @@ import {
 } from '@loopback/rest';
 import {Credenciales, Login, Usuario} from '../models';
 import {LoginRepository, UsuarioRepository, VendedorRepository} from '../repositories';
-import {SeguridadUsuarioService} from '../services';
+import {RadiusService, SeguridadUsuarioService} from '../services';
 
 export class UsuarioController {
   constructor(
@@ -34,6 +34,8 @@ export class UsuarioController {
     public loginRepository: LoginRepository,
     @repository(VendedorRepository)
     public vendedorRepository: VendedorRepository,
+    @service(RadiusService)
+    public radiusService: RadiusService,
   ) { }
 
   @post('/usuario')
@@ -74,6 +76,15 @@ export class UsuarioController {
       usuario.Clave = this.seguridadUsuarioService.cifrarTexto(usuario.Clave);
     } catch (error) {
       throw new HttpErrors.InternalServerError('Error al cifrar la clave del usuario.');
+    }
+
+    // Crear usuario RADIUS
+    try {
+      const radiusResult = await this.radiusService.crearUsuarioRadius(usuario.Nombre);
+      usuario.radiusUser = radiusResult.radiusUser;
+      usuario.radiusClave = radiusResult.radiusClave;
+    } catch (e) {
+      console.error('Error al generar credenciales RADIUS para el usuario:', e);
     }
 
     const creado = await this.usuarioRepository.create(usuario);
