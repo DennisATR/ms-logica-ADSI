@@ -31,6 +31,7 @@ import {
   PagoFacturaRepository,
   VentaRepository,
   InfolocalRepository,
+  VendedorRepository,
 } from '../repositories';
 import {ImpresoraService} from '../services';
 
@@ -58,6 +59,8 @@ export class CierreCajaController {
     public metodoPagoRepository: MetodoPagoRepository,
     @repository(InfolocalRepository)
     public infolocalRepository: InfolocalRepository,
+    @repository(VendedorRepository)
+    public vendedorRepository: VendedorRepository,
     @service(ImpresoraService)
     public impresoraService: ImpresoraService,
   ) { }
@@ -131,9 +134,31 @@ export class CierreCajaController {
     // --- Ventas y Zapato del Día ---
     const facturasDelDia = await this.facturaRepository.find({
       where: {Fecha: {like: `${soloFecha}%`}},
-      fields: {id: true, Total: true},
-    });
+      include: [{relation: 'ventas'}, {relation: 'vendedor'}],
+    }) as any[];
     const facturaIds = facturasDelDia.map(f => f.id).filter((id): id is number => typeof id === 'number');
+
+    // --- Vendedores y zapatos vendidos ---
+    const vendedorIds = Array.from(new Set(facturasDelDia.map(f => f.vendedorId).filter(id => id != null)));
+    const vendedoresList = vendedorIds.length > 0
+      ? await this.vendedorRepository.find({where: {id: {inq: vendedorIds}}})
+      : [];
+    const vendedorNombreMap = new Map<string, string>();
+    for (const v of vendedoresList) {
+      vendedorNombreMap.set(String(v.id), `${v.Nombre} ${v.Apellido}`.trim());
+    }
+
+    const vendedoresVentasMap = new Map<string, {vendedor: string; zapatosVendidos: number}>();
+    for (const f of facturasDelDia) {
+      const vId = String(f.vendedorId || '');
+      const nombreVendedor = f.vendedor ? `${f.vendedor.Nombre} ${f.vendedor.Apellido}`.trim() : (vendedorNombreMap.get(vId) || 'Vendedor');
+      const zapatosEnFactura = (f.ventas ?? []).reduce((s: number, v: any) => s + (v.Cantidad || 0), 0);
+
+      const acc = vendedoresVentasMap.get(nombreVendedor) ?? {vendedor: nombreVendedor, zapatosVendidos: 0};
+      acc.zapatosVendidos += zapatosEnFactura;
+      vendedoresVentasMap.set(nombreVendedor, acc);
+    }
+    const vendedoresVentas = Array.from(vendedoresVentasMap.values());
 
     const ventas = facturaIds.length > 0
       ? await this.ventaRepository.find({
@@ -280,6 +305,7 @@ export class CierreCajaController {
       devoluciones: -totalReembolsos,
       credito: -totalCreditos,
       abonos: totalAbonos,
+      vendedoresVentas,
     });
   }
 

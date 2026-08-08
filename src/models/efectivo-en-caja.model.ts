@@ -103,6 +103,12 @@ export class EfectivoEnCaja extends Model {
   })
   abonos?: number;
 
+  @property({
+    type: 'array',
+    itemType: 'object',
+  })
+  vendedoresVentas?: any[];
+
   constructor(data?: Partial<EfectivoEnCaja>) {
     super(data);
   }

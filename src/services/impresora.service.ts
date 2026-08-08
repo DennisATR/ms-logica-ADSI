@@ -9,6 +9,7 @@ import {
   GastosRepository,
   InfolocalRepository,
   PagoFacturaRepository,
+  VendedorRepository,
   VentaRepository,
 } from '../repositories';
 
@@ -55,6 +56,8 @@ export class ImpresoraService {
     public pagoFacturaRepository: PagoFacturaRepository,
     @repository(DevolucionRepository)
     public devolucionRepository: DevolucionRepository,
+    @repository(VendedorRepository)
+    public vendedorRepository: VendedorRepository,
   ) { }
 
   async printFactura(factura: {id: number}): Promise<void> {
@@ -125,11 +128,44 @@ export class ImpresoraService {
     const pagos = factura.pagoFacturas ?? [];
     const abono = pagos.reduce((acc: number, pago: any) => acc + (pago.Monto ?? 0), 0);
 
+    const clienteObj = (factura as any).cliente;
+    let clienteNombre = 'Consumidor Final';
+    let clienteIdentificacion = '';
+    if (clienteObj) {
+      const nombre = (clienteObj.Nombre || '').trim();
+      const apellido = (clienteObj.Apellido || '').trim();
+      clienteNombre = `${nombre} ${apellido}`.trim() || 'Consumidor Final';
+      if (clienteObj.Identificacion) {
+        clienteIdentificacion = String(clienteObj.Identificacion).trim();
+      }
+    }
+
+    const vendedorObj = (factura as any).vendedor;
+    let vendedorNombre = 'N/A';
+    if (vendedorObj) {
+      const nombre = (vendedorObj.Nombre || '').trim();
+      const apellido = (vendedorObj.Apellido || '').trim();
+      if (nombre && apellido) {
+        vendedorNombre = `${nombre} ${apellido.charAt(0).toUpperCase()}.`;
+      } else if (nombre) {
+        vendedorNombre = nombre;
+      } else if (apellido) {
+        vendedorNombre = `${apellido.charAt(0).toUpperCase()}.`;
+      }
+    }
+
     buffers.push(
       this.toESCPOS(`Factura #: ${factura.id}\n`),
       this.toESCPOS(`Fecha: ${this.formatDate(factura.Fecha)}\n`),
-      this.toESCPOS(`Cliente: ${(factura as any).cliente?.Nombre ?? 'Consumidor Final'}\n`),
-      this.toESCPOS(`Vendedor: ${factura.vendedor?.Nombre ?? 'N/A'}\n`),
+      this.toESCPOS(`Cliente: ${clienteNombre}\n`),
+    );
+
+    if (clienteIdentificacion) {
+      buffers.push(this.toESCPOS(`CC/NIT: ${clienteIdentificacion}\n`));
+    }
+
+    buffers.push(
+      this.toESCPOS(`Vendedor: ${vendedorNombre}\n`),
       LINE,
     );
 
@@ -277,15 +313,37 @@ export class ImpresoraService {
       soloFecha = `${yyyy}-${mm}-${dd}`;
     }
 
-    // --- Ventas del día (resumen por zapato) ---
+    // --- Ventas del día (resumen por zapato y vendedores) ---
     const facturasDelDia = await this.facturaRepository.find({
       where: {Fecha: {like: `${soloFecha}%`}},
-      fields: {id: true, Total: true},
-    });
+      include: [{relation: 'ventas'}, {relation: 'vendedor'}],
+    }) as any[];
 
     const facturaIds = facturasDelDia
       .map(f => f.id)
       .filter((id): id is number => typeof id === 'number');
+
+    // Vendedores y zapatos vendidos
+    const vendedorIds = Array.from(new Set(facturasDelDia.map(f => f.vendedorId).filter(id => id != null)));
+    const vendedoresList = vendedorIds.length > 0
+      ? await this.vendedorRepository.find({where: {id: {inq: vendedorIds}}})
+      : [];
+    const vendedorNombreMap = new Map<string, string>();
+    for (const v of vendedoresList) {
+      vendedorNombreMap.set(String(v.id), `${v.Nombre} ${v.Apellido}`.trim());
+    }
+
+    const vendedoresVentasMap = new Map<string, {vendedor: string; zapatosVendidos: number}>();
+    for (const f of facturasDelDia) {
+      const vId = String(f.vendedorId || '');
+      const nombreVendedor = f.vendedor ? `${f.vendedor.Nombre} ${f.vendedor.Apellido}`.trim() : (vendedorNombreMap.get(vId) || 'Vendedor');
+      const zapatosEnFactura = (f.ventas ?? []).reduce((s: number, v: any) => s + (v.Cantidad || 0), 0);
+
+      const acc = vendedoresVentasMap.get(nombreVendedor) ?? {vendedor: nombreVendedor, zapatosVendidos: 0};
+      acc.zapatosVendidos += zapatosEnFactura;
+      vendedoresVentasMap.set(nombreVendedor, acc);
+    }
+    const vendedoresVentas = Array.from(vendedoresVentasMap.values());
 
     const ventas = facturaIds.length > 0
       ? await this.ventaRepository.find({
@@ -439,8 +497,15 @@ export class ImpresoraService {
       this.toESCPOS(this.formatRow('Devoluciones', `-${this.money(totalDevoluciones)}`, WIDTH) + '\n'),
       this.toESCPOS(this.formatRow('Credito', `-${this.money(totalCreditos)}`, WIDTH) + '\n'),
       this.toESCPOS(this.formatRow('Abonos', this.money(totalAbonos), WIDTH) + '\n'),
-      LINE,
     );
+
+    for (const vv of vendedoresVentas) {
+      buffers.push(
+        this.toESCPOS(this.formatRow(`- ${vv.vendedor}`, `${vv.zapatosVendidos} zap.`, WIDTH) + '\n'),
+      );
+    }
+
+    buffers.push(LINE);
 
     // ===== RESUMEN VENTAS =====
     buffers.push(BOLD_ON, this.toESCPOS('RESUMEN VENTAS\n'), BOLD_OFF);
