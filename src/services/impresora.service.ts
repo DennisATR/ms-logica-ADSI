@@ -31,9 +31,13 @@ const NORMAL_SIZE = Buffer.from([0x1D, 0x21, 0x00]);
 const CUT = Buffer.from([0x1D, 0x56, 0x41, 0x10]);
 const CASH_DRAWER = Buffer.from([0x1B, 0x70, 0x00, 0x19, 0xFA]);
 
-// Línea del encabezado y línea general de 46 guiones
-const HEADER_LINE = Buffer.from('-'.repeat(31) + '\n');
-const LINE = Buffer.from('-'.repeat(46) + '\n');
+// Líneas para impresora grande (80mm - 46 columnas)
+const HEADER_LINE_80 = Buffer.from('-'.repeat(31) + '\n');
+const LINE_80 = Buffer.from('-'.repeat(46) + '\n');
+
+// Líneas para impresora pequeña (58mm - 32 columnas, como DIG-58IIA)
+const HEADER_LINE_58 = Buffer.from('-'.repeat(31) + '\n');
+const LINE_58 = Buffer.from('-'.repeat(32) + '\n');
 
 @injectable()
 export class ImpresoraService {
@@ -60,11 +64,36 @@ export class ImpresoraService {
     public vendedorRepository: VendedorRepository,
   ) { }
 
-  async printFactura(factura: {id: number}): Promise<void> {
-    const buffer = await this.buildFacturaBuffer(factura.id);
+  private findUsbDevice(): any {
+    let device = usb.findByIds(VENDOR_ID, PRODUCT_ID);
+    if (device) return device;
+
+    try {
+      const list = usb.getDeviceList();
+      for (const dev of list) {
+        try {
+          dev.open();
+          const ifaces = dev.interfaces || [];
+          const isPrinter = ifaces.some(
+            (iface: any) =>
+              iface.descriptor?.bInterfaceClass === 7 ||
+              iface.endpoints?.some((e: any) => e.direction === 'out' && e.transferType === 2),
+          );
+          dev.close();
+          if (isPrinter) return dev;
+        } catch (e) {
+          try { dev.close(); } catch { }
+        }
+      }
+    } catch (e) { }
+    return null;
+  }
+
+  async printFactura(factura: {id: number}, width: number = 32): Promise<void> {
+    const buffer = await this.buildFacturaBuffer(factura.id, width);
 
     return new Promise((resolve, reject) => {
-      const device = usb.findByIds(VENDOR_ID, PRODUCT_ID);
+      const device = this.findUsbDevice();
       if (!device) return resolve();
 
       try {
@@ -91,7 +120,12 @@ export class ImpresoraService {
   }
 
   // ===== FACTURA =====
-  public async buildFacturaBuffer(facturaId: number): Promise<Buffer> {
+  public async buildFacturaBuffer(facturaId: number, width: number = 32): Promise<Buffer> {
+    const is80 = width >= 44;
+    const headerLine = is80 ? HEADER_LINE_80 : HEADER_LINE_58;
+    const line = is80 ? LINE_80 : LINE_58;
+    const cols = is80 ? 46 : 32;
+
     const factura = await this.facturaRepository.findById(facturaId, {
       include: [{relation: 'cliente'}, {relation: 'vendedor'}, {relation: 'pagoFacturas', scope: {include: [{relation: 'metodoPago'}]}}],
     }) as any;
@@ -120,7 +154,7 @@ export class ImpresoraService {
       this.toESCPOS(`NIT: ${local?.NIT ?? 'N/A'}\n`),
       this.toESCPOS(`Dir: ${local?.Direccion ?? 'N/A'}\n`),
       this.toESCPOS(`Tel: ${local?.Telefono ?? 'N/A'}\n`),
-      HEADER_LINE,
+      headerLine,
       LEFT,
     );
 
@@ -166,7 +200,7 @@ export class ImpresoraService {
 
     buffers.push(
       this.toESCPOS(`Vendedor: ${vendedorNombre}\n`),
-      LINE,
+      line,
     );
 
     if (pagos.length === 0) {
@@ -180,7 +214,7 @@ export class ImpresoraService {
       });
     }
 
-    buffers.push(LINE);
+    buffers.push(line);
 
     // ===== DETALLE =====
     buffers.push(BOLD_ON, this.toESCPOS('DETALLE\n'), BOLD_OFF);
@@ -191,52 +225,92 @@ export class ImpresoraService {
         ? (v.zapato?.Descripcion || v.zapatoId || 'ITEM')
         : ((v.esVirtual && v.codigoVirtual) ? v.codigoVirtual : (v.zapatoId || 'ITEM'));
 
-      const desc = descId.toString().substring(0, 20);
-      buffers.push(
-        this.toESCPOS(
-          `${this.pad(desc, 20)} ${this.pad(String(v.Cantidad), 4)} ${this.pad(
-            this.money(v.Precio),
-            9,
-          )} ${this.money(v.Cantidad * v.Precio)}\n`,
-        ),
-      );
+      if (is80) {
+        const desc = descId.toString().substring(0, 20);
+        buffers.push(
+          this.toESCPOS(
+            `${this.pad(desc, 20)} ${this.pad(String(v.Cantidad), 4)} ${this.pad(
+              this.money(v.Precio),
+              9,
+            )} ${this.money(v.Cantidad * v.Precio)}\n`,
+          ),
+        );
+      } else {
+        const desc = descId.toString().substring(0, 32);
+        buffers.push(
+          this.toESCPOS(`${desc}\n`),
+          this.toESCPOS(
+            ` ${this.pad(String(v.Cantidad) + 'x', 5)} ${this.pad(this.money(v.Precio), 10)} = ${this.money(v.Cantidad * v.Precio).padStart(11)}\n`,
+          ),
+        );
+      }
     });
 
-    buffers.push(LINE);
+    buffers.push(line);
 
     // ===== TOTALES =====
     const metodoPagoNombre = (pagos[0]?.metodoPago?.Nombre ?? '').toLowerCase();
     const esCredito = metodoPagoNombre.includes('credito') || metodoPagoNombre.includes('crédito');
 
-    buffers.push(BOLD_ON, this.toESCPOS(`TOTAL: ${this.money(factura.Total)}\n`), BOLD_OFF);
+    if (is80) {
+      buffers.push(BOLD_ON, this.toESCPOS(`TOTAL: ${this.money(factura.Total)}\n`), BOLD_OFF);
 
-    if (esCredito) {
-      // Crédito: abono acumulado, saldo pendiente + lo recibido/cambio de este pago
-      buffers.push(
-        this.toESCPOS(`ABONO:    ${this.money(abono)}\n`),
-        this.toESCPOS(`SALDO:    ${this.money(factura.Total - abono)}\n`),
-      );
-      const primerPago = pagos[0];
-      if (primerPago && (primerPago.MontoRecibido ?? 0) > 0) {
+      if (esCredito) {
         buffers.push(
-          this.toESCPOS(`RECIBIDO: ${this.money(primerPago.MontoRecibido)}\n`),
-          this.toESCPOS(`CAMBIO:   ${this.money(primerPago.Cambio ?? 0)}\n`),
+          this.toESCPOS(`ABONO:    ${this.money(abono)}\n`),
+          this.toESCPOS(`SALDO:    ${this.money(factura.Total - abono)}\n`),
         );
+        const primerPago = pagos[0];
+        if (primerPago && (primerPago.MontoRecibido ?? 0) > 0) {
+          buffers.push(
+            this.toESCPOS(`RECIBIDO: ${this.money(primerPago.MontoRecibido)}\n`),
+            this.toESCPOS(`CAMBIO:   ${this.money(primerPago.Cambio ?? 0)}\n`),
+          );
+        }
+      } else {
+        const primerPago = pagos[0];
+        const montoRecibido = primerPago?.MontoRecibido ?? 0;
+        const cambio = primerPago?.Cambio ?? 0;
+        if (montoRecibido > 0) {
+          buffers.push(
+            this.toESCPOS(`RECIBIDO: ${this.money(montoRecibido)}\n`),
+            this.toESCPOS(`CAMBIO:   ${this.money(cambio)}\n`),
+          );
+        }
       }
     } else {
-      // Contado/Efectivo/Transferencia: solo recibido y cambio si aplica
-      const primerPago = pagos[0];
-      const montoRecibido = primerPago?.MontoRecibido ?? 0;
-      const cambio = primerPago?.Cambio ?? 0;
-      if (montoRecibido > 0) {
+      buffers.push(
+        BOLD_ON,
+        this.toESCPOS(this.formatRow('TOTAL:', this.money(factura.Total), cols) + '\n'),
+        BOLD_OFF,
+      );
+
+      if (esCredito) {
         buffers.push(
-          this.toESCPOS(`RECIBIDO: ${this.money(montoRecibido)}\n`),
-          this.toESCPOS(`CAMBIO:   ${this.money(cambio)}\n`),
+          this.toESCPOS(this.formatRow('ABONO:', this.money(abono), cols) + '\n'),
+          this.toESCPOS(this.formatRow('SALDO:', this.money(factura.Total - abono), cols) + '\n'),
         );
+        const primerPago = pagos[0];
+        if (primerPago && (primerPago.MontoRecibido ?? 0) > 0) {
+          buffers.push(
+            this.toESCPOS(this.formatRow('RECIBIDO:', this.money(primerPago.MontoRecibido), cols) + '\n'),
+            this.toESCPOS(this.formatRow('CAMBIO:', this.money(primerPago.Cambio ?? 0), cols) + '\n'),
+          );
+        }
+      } else {
+        const primerPago = pagos[0];
+        const montoRecibido = primerPago?.MontoRecibido ?? 0;
+        const cambio = primerPago?.Cambio ?? 0;
+        if (montoRecibido > 0) {
+          buffers.push(
+            this.toESCPOS(this.formatRow('RECIBIDO:', this.money(montoRecibido), cols) + '\n'),
+            this.toESCPOS(this.formatRow('CAMBIO:', this.money(cambio), cols) + '\n'),
+          );
+        }
       }
     }
 
-    buffers.push(LINE);
+    buffers.push(line);
 
     // ===== FOOTER =====
     buffers.push(
@@ -255,11 +329,11 @@ export class ImpresoraService {
 
   // ===== CIERRE DE CAJA =====
 
-  async printCierreCaja(cierre: {id: number}): Promise<void> {
-    const buffer = await this.buildCierreCajaBuffer(cierre.id);
+  async printCierreCaja(cierre: {id: number}, width: number = 32): Promise<void> {
+    const buffer = await this.buildCierreCajaBuffer(cierre.id, width);
 
     return new Promise((resolve, reject) => {
-      const device = usb.findByIds(VENDOR_ID, PRODUCT_ID);
+      const device = this.findUsbDevice();
       if (!device) return resolve();
 
       try {
@@ -285,7 +359,14 @@ export class ImpresoraService {
     });
   }
 
-  public async buildCierreCajaBuffer(cierreId: number): Promise<Buffer> {
+  public async buildCierreCajaBuffer(cierreId: number, width: number = 32): Promise<Buffer> {
+    const is80 = width >= 44;
+    const headerLine = is80 ? HEADER_LINE_80 : HEADER_LINE_58;
+    const line = is80 ? LINE_80 : LINE_58;
+    const WIDTH = is80 ? 44 : 32;
+    const maxDesc = is80 ? 27 : 17;
+    const maxConcepto = is80 ? 18 : 15;
+
     const cierre = await this.cierreCajaRepository.findById(cierreId);
     const local = await this.infolocalRepository.findOne({order: ['id DESC']});
 
@@ -359,7 +440,7 @@ export class ImpresoraService {
         ? (v.zapato?.Descripcion || v.zapatoId || 'ITEM')
         : ((v.esVirtual && v.codigoVirtual) ? v.codigoVirtual : (v.zapatoId || 'ITEM'));
 
-      const desc = descId.toString().substring(0, 27);
+      const desc = descId.toString().substring(0, maxDesc);
       const clave = descId.toString();
       const acc = resumenVentasMap.get(clave) ?? {descripcion: desc, cantidad: 0, valor: 0};
       acc.cantidad += v.Cantidad;
@@ -454,7 +535,6 @@ export class ImpresoraService {
     const efectivoEnCaja = ventasEfectivo + base - totalGastos - totalEntregas - totalDevoluciones;
     const quedaEnCaja = efectivoEnCaja - entregaCierre;
 
-    const WIDTH = 44;
     const buffers: Buffer[] = [];
 
     // ===== HEADER =====
@@ -470,7 +550,7 @@ export class ImpresoraService {
       this.toESCPOS(`NIT: ${local?.NIT ?? 'N/A'}\n`),
       this.toESCPOS(`Dir: ${local?.Direccion ?? 'N/A'}\n`),
       this.toESCPOS(`Tel: ${local?.Telefono ?? 'N/A'}\n`),
-      HEADER_LINE,
+      headerLine,
       LEFT,
     );
 
@@ -488,7 +568,7 @@ export class ImpresoraService {
     }
     buffers.push(
       this.toESCPOS(`Estado:   ${cierre.Estado ?? 'Abierta'}\n`),
-      LINE,
+      line,
     );
 
     // ===== RESUMEN RAPIDO =====
@@ -505,7 +585,7 @@ export class ImpresoraService {
       );
     }
 
-    buffers.push(LINE);
+    buffers.push(line);
 
     // ===== RESUMEN VENTAS =====
     buffers.push(BOLD_ON, this.toESCPOS('RESUMEN VENTAS\n'), BOLD_OFF);
@@ -516,7 +596,7 @@ export class ImpresoraService {
       for (const item of resumenVentas) {
         buffers.push(
           this.toESCPOS(this.formatThreeCols(
-            item.descripcion.substring(0, 27),
+            item.descripcion.substring(0, maxDesc),
             String(item.cantidad),
             this.money(item.valor),
             WIDTH,
@@ -527,7 +607,7 @@ export class ImpresoraService {
         this.toESCPOS(this.formatRow('Total Ventas', this.money(totalVentas), WIDTH) + '\n'),
       );
     }
-    buffers.push(LINE);
+    buffers.push(line);
 
     // ===== GASTOS =====
     buffers.push(BOLD_ON, this.toESCPOS('GASTOS\n'), BOLD_OFF);
@@ -537,7 +617,7 @@ export class ImpresoraService {
       for (const g of gastosDelDia) {
         buffers.push(
           this.toESCPOS(this.formatRow(
-            (g.Concepto ?? 'Gasto').substring(0, 18),
+            (g.Concepto ?? 'Gasto').substring(0, maxConcepto),
             this.money(g.Valor ?? 0),
             WIDTH,
           ) + '\n'),
@@ -547,7 +627,7 @@ export class ImpresoraService {
         this.toESCPOS(this.formatRow('Total Gastos', this.money(totalGastos), WIDTH) + '\n'),
       );
     }
-    buffers.push(LINE);
+    buffers.push(line);
 
     // ===== ENTREGAS =====
     buffers.push(BOLD_ON, this.toESCPOS('ENTREGAS\n'), BOLD_OFF);
@@ -557,7 +637,7 @@ export class ImpresoraService {
       for (const e of entregasDelDia) {
         buffers.push(
           this.toESCPOS(this.formatRow(
-            (e.EmpresaTrans ?? 'Empresa').substring(0, 18),
+            (e.EmpresaTrans ?? 'Empresa').substring(0, maxConcepto),
             this.money(e.Cobro ?? 0),
             WIDTH,
           ) + '\n'),
@@ -567,7 +647,7 @@ export class ImpresoraService {
         this.toESCPOS(this.formatRow('Total Entregas', this.money(totalEntregas), WIDTH) + '\n'),
       );
     }
-    buffers.push(LINE);
+    buffers.push(line);
 
     // ===== METODOS DE PAGO =====
     buffers.push(BOLD_ON, this.toESCPOS('METODOS DE PAGO\n'), BOLD_OFF);
@@ -577,7 +657,7 @@ export class ImpresoraService {
       for (const mp of resumenMetodoPago) {
         buffers.push(
           this.toESCPOS(this.formatRow(
-            mp.nombre.substring(0, 18),
+            mp.nombre.substring(0, maxConcepto),
             this.money(mp.valor),
             WIDTH,
           ) + '\n'),
@@ -587,7 +667,7 @@ export class ImpresoraService {
         this.toESCPOS(this.formatRow('Total', this.money(totalMetodoPago), WIDTH) + '\n'),
       );
     }
-    buffers.push(LINE);
+    buffers.push(line);
 
     // ===== TOTALES EFECTIVO =====
     buffers.push(
@@ -601,7 +681,7 @@ export class ImpresoraService {
     // Mostrar MontoReal y Diferencia si ya se cerró
     if (cierre.Estado === 'Cerrada') {
       buffers.push(
-        LINE,
+        line,
         BOLD_ON,
         this.toESCPOS(this.formatRow('Monto Esperado', this.money(cierre.MontoEsperado ?? 0), WIDTH) + '\n'),
         this.toESCPOS(this.formatRow('Monto Real', this.money(cierre.MontoReal ?? 0), WIDTH) + '\n'),
@@ -610,7 +690,7 @@ export class ImpresoraService {
       );
     }
 
-    buffers.push(LINE);
+    buffers.push(line);
 
     // ===== FOOTER =====
     buffers.push(
@@ -700,21 +780,21 @@ export class ImpresoraService {
 
   /**
    * Crea una fila de dos columnas: label a la izquierda y valor a la derecha.
-   * El total nunca supera `width` caracteres.
+   * El total nunca supera `width` caracteres (predeterminado 32 para 58mm).
    */
-  private formatRow(label: string, value: string, width: number): string {
+  private formatRow(label: string, value: string, width: number = 32): string {
     const maxLabel = width - value.length - 1;
     const truncLabel = label.substring(0, maxLabel).padEnd(maxLabel);
     return `${truncLabel} ${value}`;
   }
 
   /**
-   * Crea una fila de tres columnas alineadas dentro de `width` caracteres.
+   * Crea una fila de tres columnas alineadas dentro de `width` caracteres (32 para 58mm).
    * col1 | col2 centrado | col3 derecha
    */
-  private formatThreeCols(col1: string, col2: string, col3: string, width: number): string {
-    const c3 = col3.substring(0, 10).padStart(10);
-    const c2 = col2.substring(0, 5).padStart(5);
+  private formatThreeCols(col1: string, col2: string, col3: string, width: number = 32): string {
+    const c3 = col3.substring(0, 9).padStart(9);
+    const c2 = col2.substring(0, 4).padStart(4);
     const c1Len = width - c2.length - c3.length - 2;
     const c1 = col1.substring(0, c1Len).padEnd(c1Len);
     return `${c1} ${c2} ${c3}`;
@@ -731,3 +811,4 @@ export class ImpresoraService {
     return `${dia}/${mes}/${anio} ${hora}:${minutos}`;
   }
 }
+

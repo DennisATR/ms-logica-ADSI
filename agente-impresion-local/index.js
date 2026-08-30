@@ -12,6 +12,31 @@ const PRODUCT_ID = 256;
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
+function findPrinterDevice() {
+  let device = usb.findByIds(VENDOR_ID, PRODUCT_ID);
+  if (device) return device;
+
+  try {
+    const list = usb.getDeviceList();
+    for (const dev of list) {
+      try {
+        dev.open();
+        const ifaces = dev.interfaces || [];
+        const isPrinter = ifaces.some(
+          (iface) =>
+            iface.descriptor?.bInterfaceClass === 7 ||
+            iface.endpoints?.some((e) => e.direction === 'out' && e.transferType === 2)
+        );
+        dev.close();
+        if (isPrinter) return dev;
+      } catch (e) {
+        try { dev.close(); } catch (err) {}
+      }
+    }
+  } catch (e) {}
+  return null;
+}
+
 app.post('/print', (req, res) => {
   const { buffer: base64Buffer } = req.body;
 
@@ -21,7 +46,7 @@ app.post('/print', (req, res) => {
 
   const printData = Buffer.from(base64Buffer, 'base64');
 
-  const device = usb.findByIds(VENDOR_ID, PRODUCT_ID);
+  const device = findPrinterDevice();
   
   if (!device) {
     return res.status(500).json({ error: 'Impresora no encontrada en el USB local' });

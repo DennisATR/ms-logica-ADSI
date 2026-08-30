@@ -171,8 +171,9 @@ export class FacturaController {
   })
   async getBufferImpresion(
     @param.path.number('id') id: number,
+    @param.query.number('width') width?: number,
   ): Promise<{buffer: string}> {
-    const buffer = await this.impresoraService.buildFacturaBuffer(id);
+    const buffer = await this.impresoraService.buildFacturaBuffer(id, width ?? 32);
     return {buffer: buffer.toString('base64')};
   }
 
@@ -182,7 +183,8 @@ export class FacturaController {
   })
   async imprimirEnServidor(
     @param.path.number('id') id: number,
+    @param.query.number('width') width?: number,
   ): Promise<void> {
-    await this.impresoraService.printFactura({id});
+    await this.impresoraService.printFactura({id}, width ?? 32);
   }
 }

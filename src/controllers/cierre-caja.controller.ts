@@ -453,8 +453,9 @@ export class CierreCajaController {
   })
   async getBufferImpresionCierre(
     @param.path.number('id') id: number,
+    @param.query.number('width') width?: number,
   ): Promise<{buffer: string}> {
-    const buffer = await this.impresoraService.buildCierreCajaBuffer(id);
+    const buffer = await this.impresoraService.buildCierreCajaBuffer(id, width ?? 32);
     return {buffer: buffer.toString('base64')};
   }
 
@@ -464,8 +465,9 @@ export class CierreCajaController {
   })
   async imprimirCierreEnServidor(
     @param.path.number('id') id: number,
+    @param.query.number('width') width?: number,
   ): Promise<void> {
-    await this.impresoraService.printCierreCaja({id});
+    await this.impresoraService.printCierreCaja({id}, width ?? 32);
   }
 
 }
