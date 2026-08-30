@@ -29,7 +29,13 @@ const BOLD_OFF = Buffer.from([0x1B, 0x45, 0x00]);
 const DOUBLE_SIZE = Buffer.from([0x1D, 0x21, 0x11]);
 const NORMAL_SIZE = Buffer.from([0x1D, 0x21, 0x00]);
 const CUT = Buffer.from([0x1D, 0x56, 0x41, 0x10]);
-const CASH_DRAWER = Buffer.from([0x1B, 0x70, 0x00, 0x19, 0xFA]);
+const CASH_DRAWER = Buffer.from([
+  0x1B, 0x70, 0x00, 0x19, 0xFA, // Pin 2 (estándar 25ms/250ms)
+  0x1B, 0x70, 0x01, 0x19, 0xFA, // Pin 5 (estándar 25ms/250ms)
+  0x1B, 0x70, 0x00, 0x32, 0x96, // Pin 2 pulso prolongado (50ms/150ms)
+  0x10, 0x14, 0x01, 0x00, 0x05, // Comandos en tiempo real DLE DC4
+  0x07,                         // Señal acústica/apertura BEL
+]);
 
 // Líneas para impresora grande (80mm - 46 columnas)
 const HEADER_LINE_80 = Buffer.from('-'.repeat(31) + '\n');
@@ -148,12 +154,16 @@ export class ImpresoraService {
       CENTER,
       DOUBLE_SIZE,
       BOLD_ON,
-      this.toESCPOS(`${local?.Nombre ?? 'LOCAL'}\n`),
+    );
+    this.pushWrappedText(buffers, local?.Nombre ?? 'LOCAL', Math.floor(cols / 2));
+    buffers.push(
       BOLD_OFF,
       NORMAL_SIZE,
-      this.toESCPOS(`NIT: ${local?.NIT ?? 'N/A'}\n`),
-      this.toESCPOS(`Dir: ${local?.Direccion ?? 'N/A'}\n`),
-      this.toESCPOS(`Tel: ${local?.Telefono ?? 'N/A'}\n`),
+    );
+    this.pushWrappedText(buffers, `NIT: ${local?.NIT ?? 'N/A'}`, cols);
+    this.pushWrappedText(buffers, `Dir: ${local?.Direccion ?? 'N/A'}`, cols);
+    this.pushWrappedText(buffers, `Tel: ${local?.Telefono ?? 'N/A'}`, cols);
+    buffers.push(
       headerLine,
       LEFT,
     );
@@ -188,20 +198,16 @@ export class ImpresoraService {
       }
     }
 
-    buffers.push(
-      this.toESCPOS(`Factura #: ${factura.id}\n`),
-      this.toESCPOS(`Fecha: ${this.formatDate(factura.Fecha)}\n`),
-      this.toESCPOS(`Cliente: ${clienteNombre}\n`),
-    );
+    this.pushWrappedText(buffers, `Factura #: ${factura.id}`, cols);
+    this.pushWrappedText(buffers, `Fecha: ${this.formatDate(factura.Fecha)}`, cols);
+    this.pushWrappedText(buffers, `Cliente: ${clienteNombre}`, cols);
 
     if (clienteIdentificacion) {
-      buffers.push(this.toESCPOS(`CC/NIT: ${clienteIdentificacion}\n`));
+      this.pushWrappedText(buffers, `CC/NIT: ${clienteIdentificacion}`, cols);
     }
 
-    buffers.push(
-      this.toESCPOS(`Vendedor: ${vendedorNombre}\n`),
-      line,
-    );
+    this.pushWrappedText(buffers, `Vendedor: ${vendedorNombre}`, cols);
+    buffers.push(line);
 
     if (pagos.length === 0) {
       buffers.push(this.toESCPOS('Pagos: Sin registros\n'));
@@ -236,9 +242,11 @@ export class ImpresoraService {
           ),
         );
       } else {
-        const desc = descId.toString().substring(0, 32);
+        const descLines = this.wrapText(descId.toString(), 32);
+        descLines.forEach((descLine: string) => {
+          buffers.push(this.toESCPOS(`${descLine}\n`));
+        });
         buffers.push(
-          this.toESCPOS(`${desc}\n`),
           this.toESCPOS(
             ` ${this.pad(String(v.Cantidad) + 'x', 5)} ${this.pad(this.money(v.Precio), 10)} = ${this.money(v.Cantidad * v.Precio).padStart(11)}\n`,
           ),
@@ -313,9 +321,9 @@ export class ImpresoraService {
     buffers.push(line);
 
     // ===== FOOTER =====
+    buffers.push(CENTER);
+    this.pushWrappedText(buffers, local?.Mensaje ?? '¡Gracias por su compra!', cols);
     buffers.push(
-      CENTER,
-      this.toESCPOS(local?.Mensaje ?? '¡Gracias por su compra!\n'),
       this.toESCPOS('\n'),
       LEFT,
       this.toESCPOS('Desarrollado por ADSI\n'),
@@ -544,12 +552,16 @@ export class ImpresoraService {
       CENTER,
       DOUBLE_SIZE,
       BOLD_ON,
-      this.toESCPOS(`${local?.Nombre ?? 'LOCAL'}\n`),
+    );
+    this.pushWrappedText(buffers, local?.Nombre ?? 'LOCAL', Math.floor(WIDTH / 2));
+    buffers.push(
       BOLD_OFF,
       NORMAL_SIZE,
-      this.toESCPOS(`NIT: ${local?.NIT ?? 'N/A'}\n`),
-      this.toESCPOS(`Dir: ${local?.Direccion ?? 'N/A'}\n`),
-      this.toESCPOS(`Tel: ${local?.Telefono ?? 'N/A'}\n`),
+    );
+    this.pushWrappedText(buffers, `NIT: ${local?.NIT ?? 'N/A'}`, WIDTH);
+    this.pushWrappedText(buffers, `Dir: ${local?.Direccion ?? 'N/A'}`, WIDTH);
+    this.pushWrappedText(buffers, `Tel: ${local?.Telefono ?? 'N/A'}`, WIDTH);
+    buffers.push(
       headerLine,
       LEFT,
     );
@@ -693,9 +705,9 @@ export class ImpresoraService {
     buffers.push(line);
 
     // ===== FOOTER =====
+    buffers.push(CENTER);
+    this.pushWrappedText(buffers, local?.Mensaje ?? '!Gracias por su compra!', WIDTH);
     buffers.push(
-      CENTER,
-      this.toESCPOS(local?.Mensaje ?? '!Gracias por su compra!\n'),
       this.toESCPOS('\n'),
       LEFT,
       this.toESCPOS('Desarrollado por ADSI\n'),
@@ -707,6 +719,64 @@ export class ImpresoraService {
   }
 
   // ===== HELPERS =====
+
+  /**
+   * Envía texto a la impresora aplicando salto de línea inteligente (word-wrap).
+   * Evita que palabras se corten a la mitad en la impresora.
+   */
+  private pushWrappedText(buffers: Buffer[], text: string, maxWidth: number = 32): void {
+    if (!text) return;
+    const lines = this.wrapText(text, maxWidth);
+    lines.forEach((l) => {
+      buffers.push(this.toESCPOS(`${l}\n`));
+    });
+  }
+
+  /**
+   * Divide un texto en varias líneas respetando palabras (word-wrap).
+   * Si una sola palabra excede el ancho máximo, la parte en ese límite.
+   */
+  private wrapText(text: string, maxWidth: number = 32): string[] {
+    if (!text) return [''];
+    const words = text.trim().split(/\s+/);
+    const lines: string[] = [];
+    let currentLine = '';
+
+    for (const word of words) {
+      if (!currentLine) {
+        if (word.length <= maxWidth) {
+          currentLine = word;
+        } else {
+          let remaining = word;
+          while (remaining.length > maxWidth) {
+            lines.push(remaining.substring(0, maxWidth));
+            remaining = remaining.substring(maxWidth);
+          }
+          currentLine = remaining;
+        }
+      } else {
+        if (currentLine.length + 1 + word.length <= maxWidth) {
+          currentLine += ' ' + word;
+        } else {
+          lines.push(currentLine);
+          if (word.length <= maxWidth) {
+            currentLine = word;
+          } else {
+            let remaining = word;
+            while (remaining.length > maxWidth) {
+              lines.push(remaining.substring(0, maxWidth));
+              remaining = remaining.substring(maxWidth);
+            }
+            currentLine = remaining;
+          }
+        }
+      }
+    }
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+    return lines;
+  }
 
   /**
    * Convierte texto UTF-8 con caracteres españoles al encoding CP850
