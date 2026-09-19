@@ -1,4 +1,5 @@
 export * from './cierre-caja.controller';
+export * from './dashboard.controller';
 export * from './cliente-factura.controller';
 export * from './cliente.controller';
 export * from './credito-factura.controller';
